@@ -9,7 +9,8 @@ phase: prototype-docs-baseline
 - Keep this file short. Target 80 lines or fewer.
 - Do not accumulate completed work history here.
 - Overwrite stale state at the end of each meaningful work session.
-- Use Git commits for completed history once Git is available.
+- Use Git commits for completed history.
+- Commit completed and verified implementation/doc work unless a blocker or user hold exists.
 - Treat `SPEC.md` and routed docs as the source of truth. This file is only a pointer.
 
 ## Start Here
