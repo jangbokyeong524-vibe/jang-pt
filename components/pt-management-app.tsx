@@ -684,9 +684,12 @@ function AdminHomeView({
   state: AppState;
   memberName: (memberId: string) => string;
 }) {
+  const priorityTasks = tasks.slice(0, 3);
+  const hiddenTaskCount = Math.max(0, tasks.length - priorityTasks.length);
+
   return (
     <div className="admin-home">
-      <section className="task-panel" aria-label="처리 필요">
+      <section className="task-panel task-panel-compact" aria-label="처리 필요">
         <div className="panel-heading">
           <div>
             <p className="eyebrow">오늘 처리</p>
@@ -694,9 +697,9 @@ function AdminHomeView({
           </div>
           <AlertTriangle size={20} />
         </div>
-        <div className="task-list">
-          {tasks.map((task) => (
-            <div className={`task-item ${task.tone}`} key={task.id}>
+        <div className="task-list compact">
+          {priorityTasks.map((task) => (
+            <div className={`task-item compact ${task.tone}`} key={task.id}>
               <div>
                 <strong>{task.title}</strong>
                 <p>{task.body}</p>
@@ -704,6 +707,11 @@ function AdminHomeView({
               <span>{task.badge}</span>
             </div>
           ))}
+          {hiddenTaskCount > 0 && (
+            <div className="task-overflow">
+              나머지 {hiddenTaskCount}건은 하단 탭에서 처리
+            </div>
+          )}
           {tasks.length === 0 && <div className="empty-state">오늘 처리할 항목이 없습니다.</div>}
         </div>
       </section>
@@ -720,7 +728,7 @@ function AdminHomeView({
           weekDays={weekDays}
           state={state}
           memberName={memberName}
-          compact
+          summary
         />
       </section>
     </div>
@@ -774,7 +782,7 @@ function WeekSchedule({
   rejectReservation,
   completeSession,
   resolveLateCancel,
-  compact = false
+  summary = false
 }: {
   weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>;
   state: AppState;
@@ -783,10 +791,14 @@ function WeekSchedule({
   rejectReservation?: (reservationId: string) => void;
   completeSession?: (reservationId: string) => void;
   resolveLateCancel?: (reservationId: string, deduct: boolean) => void;
-  compact?: boolean;
+  summary?: boolean;
 }) {
+  if (summary) {
+    return <WeekSummary weekDays={weekDays} state={state} memberName={memberName} />;
+  }
+
   return (
-    <div className={compact ? "week-grid compact" : "week-grid"}>
+    <div className="week-grid">
       {weekDays.map((group) => (
         <section className="week-day" key={group.day}>
           <div className="week-day-heading">
@@ -806,18 +818,18 @@ function WeekSchedule({
                     <StatusPill value={reservation?.status ?? slot.status} />
                   </div>
                   <p>{reservation ? memberName(reservation.memberId) : slot.status === "blocked" ? "운영 차단" : "예약 가능"}</p>
-                  {!compact && reservation?.status === "requested" && approveReservation && rejectReservation && (
+                  {reservation?.status === "requested" && approveReservation && rejectReservation && (
                     <div className="row-actions">
                       <IconButton label="승인" onClick={() => approveReservation(reservation.id)} icon={<Check size={16} />} />
                       <IconButton label="거절" onClick={() => rejectReservation(reservation.id)} icon={<X size={16} />} />
                     </div>
                   )}
-                  {!compact && reservation?.status === "confirmed" && completeSession && (
+                  {reservation?.status === "confirmed" && completeSession && (
                     <div className="row-actions">
                       <IconButton label="완료" onClick={() => completeSession(reservation.id)} icon={<Check size={16} />} />
                     </div>
                   )}
-                  {!compact && reservation?.status === "cancel_requested" && resolveLateCancel && (
+                  {reservation?.status === "cancel_requested" && resolveLateCancel && (
                     <div className="row-actions">
                       <button className="small-button danger" onClick={() => resolveLateCancel(reservation.id, true)}>
                         차감
@@ -833,6 +845,48 @@ function WeekSchedule({
           </div>
         </section>
       ))}
+    </div>
+  );
+}
+
+function WeekSummary({
+  weekDays,
+  state,
+  memberName
+}: {
+  weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>;
+  state: AppState;
+  memberName: (memberId: string) => string;
+}) {
+  return (
+    <div className="week-summary-grid">
+      {weekDays.map((group) => {
+        const reservations = group.slots
+          .map((slot) => state.reservations.find((reservation) => reservation.slotId === slot.id))
+          .filter((reservation): reservation is Reservation => Boolean(reservation));
+        const openCount = group.slots.filter((slot) => slot.status === "open").length;
+        const primaryReservation = reservations[0];
+
+        return (
+          <section className="week-summary-day" key={group.day}>
+            <div className="week-day-heading">
+              <strong>{weekdayLabel(group.day)}</strong>
+              <span>{monthDayLabel(group.day)}</span>
+            </div>
+            <div className="week-summary-body">
+              <strong>{group.slots.length}개</strong>
+              <span>{primaryReservation ? memberName(primaryReservation.memberId) : openCount > 0 ? `가능 ${openCount}` : "비어있음"}</span>
+              <div className="summary-dots" aria-label="슬롯 상태 요약">
+                {group.slots.slice(0, 4).map((slot) => {
+                  const reservation = state.reservations.find((item) => item.slotId === slot.id);
+                  return <i className={reservation?.status ?? slot.status} key={slot.id} />;
+                })}
+                {group.slots.length === 0 && <i className="empty" />}
+              </div>
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }

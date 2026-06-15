@@ -28,7 +28,7 @@ phase: week-bottom-tabs-ia-implemented
 - Mobile-first design is part of the baseline.
 - Apple iOS operations UI has been applied to the local demo screen.
 - Admin/member screens now use bottom tabs in the local demo UI.
-- Admin home prioritizes processing tasks, with a compact seven-day weekly summary below.
+- Admin home prioritizes processing tasks in a compact queue, with an aligned seven-day weekly summary below.
 - Admin and member schedule views use a seven-day column layout so one week is visible at once.
 - The top admin/member switch remains only as a development/demo review convenience until Supabase Auth role routing replaces it.
 - UI direction and implementation plan live in `DESIGN.md`, `docs/superpowers/specs/2026-06-15-apple-ios-operations-ui-design.md`, and `docs/superpowers/plans/2026-06-15-apple-ios-operations-ui.md`.
@@ -50,6 +50,7 @@ phase: week-bottom-tabs-ia-implemented
 ## Last Verified
 
 - 2026-06-15: Week bottom tabs implementation verified with `npm run build` and production `next start -p 3002` HTTP checks.
+- 2026-06-15: Admin home compact queue and aligned weekly summary fix verified with `npm run build` and production `next start -p 3002` HTTP checks.
 - 2026-06-15: `npm run build` passed.
 - 2026-06-15: Apple UI pass verified with production `next start -p 3002` Playwright mobile/desktop screenshots and admin-to-member interaction check.
 - 2026-06-15: `timeout 8s ./Start.sh` reached Next.js `Ready` before timeout.

@@ -228,6 +228,14 @@ h3 {
   position: static;
 }
 
+.task-panel-compact {
+  padding: 12px;
+}
+
+.task-panel-compact .panel-heading {
+  margin-bottom: 9px;
+}
+
 .panel-heading {
   justify-content: space-between;
   gap: 12px;
@@ -245,6 +253,10 @@ h3 {
   grid-template-columns: 1fr;
 }
 
+.task-list.compact {
+  gap: 6px;
+}
+
 .task-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -253,6 +265,13 @@ h3 {
   border: 1px solid var(--line-soft);
   border-radius: var(--row-radius);
   background: var(--surface-strong);
+}
+
+.task-item.compact {
+  min-height: 50px;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
 }
 
 .task-item strong {
@@ -266,6 +285,16 @@ h3 {
   margin-top: 4px;
 }
 
+.task-item.compact p {
+  max-width: 100%;
+  overflow: hidden;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .task-item span {
   align-self: start;
   padding: 4px 9px;
@@ -274,6 +303,24 @@ h3 {
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.task-item.compact span {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.task-overflow {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  color: var(--muted);
+  background: var(--surface-strong);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .task-item.warn {
@@ -363,8 +410,24 @@ h3 {
   scrollbar-width: thin;
 }
 
+.week-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(74px, 1fr));
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
 .week-day {
   min-width: 0;
+}
+
+.week-summary-day {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: 42px 72px;
+  gap: 5px;
 }
 
 .week-day-heading {
@@ -379,6 +442,12 @@ h3 {
   border-radius: 13px;
   background: var(--surface-strong);
   text-align: center;
+}
+
+.week-summary-day .week-day-heading {
+  min-height: 42px;
+  margin-bottom: 0;
+  border-radius: 11px;
 }
 
 .week-day-heading strong {
@@ -459,6 +528,68 @@ h3 {
   background: var(--surface-strong);
   font-size: 12px;
   text-align: center;
+}
+
+.week-summary-body {
+  display: grid;
+  grid-template-rows: auto minmax(16px, 1fr) auto;
+  align-items: center;
+  min-height: 72px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.week-summary-body strong {
+  font-size: 15px;
+}
+
+.week-summary-body span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-dots {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+.summary-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--info);
+}
+
+.summary-dots i.requested,
+.summary-dots i.held,
+.summary-dots i.unpaid,
+.summary-dots i.boxpos_requested {
+  background: #c88400;
+}
+
+.summary-dots i.confirmed,
+.summary-dots i.completed,
+.summary-dots i.paid {
+  background: var(--good);
+}
+
+.summary-dots i.cancel_requested,
+.summary-dots i.no_show {
+  background: var(--danger);
+}
+
+.summary-dots i.blocked,
+.summary-dots i.empty {
+  background: #c7c7cc;
 }
 
 .row-actions {
@@ -947,6 +1078,12 @@ textarea {
     grid-template-columns: repeat(7, minmax(0, 1fr));
     overflow-x: visible;
     gap: 10px;
+  }
+
+  .week-summary-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    overflow-x: visible;
+    gap: 8px;
   }
 
   .split-layout {
