@@ -7,3 +7,4 @@ out
 *.tsbuildinfo
 *.log
 dev-server.err
+.superpowers/
