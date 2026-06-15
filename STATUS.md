@@ -2,7 +2,7 @@
 
 updated: 2026-06-15
 mode: codex-resume-index
-phase: week-layering-restored
+phase: week-matrix-aligned
 
 ## Rules
 
@@ -29,12 +29,13 @@ phase: week-layering-restored
 - Apple iOS operations UI has been applied to the local demo screen.
 - Admin/member screens now use bottom tabs in the local demo UI.
 - Admin home prioritizes processing tasks in a compact queue, with an aligned seven-day weekly summary below.
-- Admin and member schedule views use a seven-day column layout so one week is visible at once.
+- Admin and member schedule views use a seven-day time matrix so one week is visible at once.
 - The app shell suppresses page-level horizontal overflow; bottom tabs are the only intentional horizontal drag surface on narrow mobile widths.
 - Admin home weekly summary fits seven days into the first mobile viewport without its own horizontal scroll.
 - Admin/member app shells are flat layout containers; repeated data items remain carded.
 - Admin home uses the shared flat app shell so `오늘 처리` and `주간 요약` do not sit inside an extra outer card layer.
-- Admin/member weekly detail screens use flat week layout blocks; mobile week grids own the intentional horizontal scroll.
+- Admin/member weekly detail screens use flat week layout blocks with no horizontal scroll.
+- Weekly detail actions live in a compact selected-slot panel below the 7-day matrix.
 - Admin home weekly summary uses one compact cell per day and shows short member names without ellipsis.
 - The top admin/member switch remains only as a development/demo review convenience until Supabase Auth role routing replaces it.
 - UI direction and implementation plan live in `DESIGN.md`, `docs/superpowers/specs/2026-06-15-apple-ios-operations-ui-design.md`, and `docs/superpowers/plans/2026-06-15-apple-ios-operations-ui.md`.
@@ -55,6 +56,7 @@ phase: week-layering-restored
 
 ## Last Verified
 
+- 2026-06-15: Week matrix alignment verified with `npm run check:layout`, `git diff --check`, `npm run build`, and Playwright rendered checks/screenshots at 320px, 390px, and 1280px for admin week and member booking.
 - 2026-06-15: Week layer cleanup verified with `npm run check:layout`, `git diff --check`, `npm run build`, HTTP check on `http://localhost:3000/`, and Playwright rendered checks/screenshots at 320px, 390px, and 1280px for admin home, admin week, and member booking.
 - 2026-06-15: Week bottom tabs implementation verified with `npm run build` and production `next start -p 3002` HTTP checks.
 - 2026-06-15: Admin home layer compression verified with static layout check, `git diff --check`, `npm run build`, dev HTTP check, and Playwright screenshots at 320px, 390px, and 1280px.

@@ -793,59 +793,94 @@ function WeekSchedule({
   resolveLateCancel?: (reservationId: string, deduct: boolean) => void;
   summary?: boolean;
 }) {
+  const rows = buildWeekTimeRows(weekDays);
+  const firstSlotId = firstChronologicalSlot(weekDays)?.id;
+  const [selectedSlotId, setSelectedSlotId] = useState(firstSlotId);
+  const selectedSlot = state.slots.find((slot) => slot.id === selectedSlotId) ?? state.slots.find((slot) => slot.id === firstSlotId);
+  const selectedReservation = selectedSlot
+    ? state.reservations.find((reservation) => reservation.slotId === selectedSlot.id)
+    : undefined;
+
   if (summary) {
     return <WeekSummary weekDays={weekDays} state={state} memberName={memberName} />;
   }
 
   return (
-    <div className="week-grid">
-      {weekDays.map((group) => (
-        <section className="week-day" key={group.day}>
-          <div className="week-day-heading">
-            <strong>{weekdayLabel(group.day)}</strong>
-            <span>{monthDayLabel(group.day)}</span>
-          </div>
-          <div className="slot-list">
-            {group.slots.length === 0 && <div className="empty-slot">슬롯 없음</div>}
-            {group.slots.map((slot) => {
-              const reservation = state.reservations.find((item) => item.slotId === slot.id);
+    <>
+      <div className="week-matrix" role="grid" aria-label="7일 예약 현황">
+        <div className="week-matrix-header" role="row">
+          <span className="week-time-label">시간</span>
+          {weekDays.map((group) => (
+            <div className="week-day-heading" role="columnheader" key={group.day}>
+              <strong>{weekdayLabel(group.day)}</strong>
+              <span>{monthDayLabel(group.day)}</span>
+            </div>
+          ))}
+        </div>
+
+        {rows.map((row) => (
+          <div className="week-time-row" role="row" key={row.time}>
+            <span className="week-time-label">{row.time}</span>
+            {row.slots.map((slot, index) => {
+              const reservation = slot ? state.reservations.find((item) => item.slotId === slot.id) : undefined;
+              const status = reservation?.status ?? slot?.status ?? "empty";
+              const label = reservation ? memberName(reservation.memberId) : slot?.status === "blocked" ? "차단" : slot ? "가능" : "없음";
+
               return (
-                <article className={`slot-card ${slot.status}`} key={slot.id}>
-                  <div className="slot-main">
-                    <span className="slot-time">
-                      {timeLabel(slot.startAt)}
-                    </span>
-                    <StatusPill value={reservation?.status ?? slot.status} />
-                  </div>
-                  <p>{reservation ? memberName(reservation.memberId) : slot.status === "blocked" ? "운영 차단" : "예약 가능"}</p>
-                  {reservation?.status === "requested" && approveReservation && rejectReservation && (
-                    <div className="row-actions">
-                      <IconButton label="승인" onClick={() => approveReservation(reservation.id)} icon={<Check size={16} />} />
-                      <IconButton label="거절" onClick={() => rejectReservation(reservation.id)} icon={<X size={16} />} />
-                    </div>
-                  )}
-                  {reservation?.status === "confirmed" && completeSession && (
-                    <div className="row-actions">
-                      <IconButton label="완료" onClick={() => completeSession(reservation.id)} icon={<Check size={16} />} />
-                    </div>
-                  )}
-                  {reservation?.status === "cancel_requested" && resolveLateCancel && (
-                    <div className="row-actions">
-                      <button className="small-button danger" onClick={() => resolveLateCancel(reservation.id, true)}>
-                        차감
-                      </button>
-                      <button className="small-button" onClick={() => resolveLateCancel(reservation.id, false)}>
-                        미차감
-                      </button>
-                    </div>
-                  )}
-                </article>
+                <button
+                  className={`week-cell ${status} ${selectedSlot?.id === slot?.id ? "selected" : ""}`}
+                  type="button"
+                  role="gridcell"
+                  key={`${row.time}-${weekDays[index]?.day ?? index}`}
+                  onClick={() => slot && setSelectedSlotId(slot.id)}
+                  disabled={!slot}
+                  aria-label={`${weekDays[index] ? weekdayLabel(weekDays[index].day) : ""} ${row.time} ${label}`}
+                >
+                  <span className="week-cell-status">{shortStatusLabel(status)}</span>
+                  <span className="week-cell-detail">{label}</span>
+                </button>
               );
             })}
           </div>
-        </section>
-      ))}
-    </div>
+        ))}
+      </div>
+
+      <section className="week-selection-panel" aria-label="선택 슬롯 상세">
+        {selectedSlot ? (
+          <>
+            <div>
+              <p className="eyebrow">선택 슬롯</p>
+              <h3>{formatDateTime(selectedSlot.startAt)}</h3>
+              <p>{selectedReservation ? memberName(selectedReservation.memberId) : selectedSlot.status === "blocked" ? "운영 차단" : "예약 가능"}</p>
+            </div>
+            <StatusPill value={selectedReservation?.status ?? selectedSlot.status} />
+            {selectedReservation?.status === "requested" && approveReservation && rejectReservation && (
+              <div className="row-actions">
+                <IconButton label="승인" onClick={() => approveReservation(selectedReservation.id)} icon={<Check size={16} />} />
+                <IconButton label="거절" onClick={() => rejectReservation(selectedReservation.id)} icon={<X size={16} />} />
+              </div>
+            )}
+            {selectedReservation?.status === "confirmed" && completeSession && (
+              <div className="row-actions">
+                <IconButton label="완료" onClick={() => completeSession(selectedReservation.id)} icon={<Check size={16} />} />
+              </div>
+            )}
+            {selectedReservation?.status === "cancel_requested" && resolveLateCancel && (
+              <div className="row-actions">
+                <button className="small-button danger" onClick={() => resolveLateCancel(selectedReservation.id, true)}>
+                  차감
+                </button>
+                <button className="small-button" onClick={() => resolveLateCancel(selectedReservation.id, false)}>
+                  미차감
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="empty-state">선택할 슬롯이 없습니다.</div>
+        )}
+      </section>
+    </>
   );
 }
 
@@ -1366,6 +1401,16 @@ function MemberBookingView({
   requestBooking: (slotId: string) => void;
 }) {
   const visibleUntil = addDays(new Date(), state.policies.booking.publishWeeks * 7).getTime();
+  const visibleWeekDays = weekDays.map((group) => ({
+    ...group,
+    slots: group.slots.filter((slot) => new Date(slot.startAt).getTime() <= visibleUntil)
+  }));
+  const rows = buildWeekTimeRows(visibleWeekDays);
+  const firstSlotId = firstChronologicalSlot(visibleWeekDays)?.id;
+  const [selectedSlotId, setSelectedSlotId] = useState(firstSlotId);
+  const selectedSlot = visibleWeekDays
+    .flatMap((group) => group.slots)
+    .find((slot) => slot.id === selectedSlotId) ?? visibleWeekDays.flatMap((group) => group.slots).find((slot) => slot.id === firstSlotId);
 
   return (
     <section className="week-screen">
@@ -1376,34 +1421,67 @@ function MemberBookingView({
         </div>
         <CalendarDays size={20} />
       </div>
-      <div className="week-grid member-week-grid">
-        {weekDays.map((group) => (
-          <section className="week-day" key={group.day}>
-            <div className="week-day-heading">
+
+      <div className="week-matrix member-week-matrix" role="grid" aria-label="이번 주 가능 시간">
+        <div className="week-matrix-header" role="row">
+          <span className="week-time-label">시간</span>
+          {visibleWeekDays.map((group) => (
+            <div className="week-day-heading" role="columnheader" key={group.day}>
               <strong>{weekdayLabel(group.day)}</strong>
               <span>{monthDayLabel(group.day)}</span>
             </div>
-            <div className="slot-list">
-              {group.slots.filter((slot) => new Date(slot.startAt).getTime() <= visibleUntil).length === 0 && (
-                <div className="empty-slot">가능 시간 없음</div>
-              )}
-              {group.slots
-                .filter((slot) => new Date(slot.startAt).getTime() <= visibleUntil)
-                .map((slot) => (
-                  <button
-                    className={`member-slot-card ${slot.status}`}
-                    key={slot.id}
-                    onClick={() => slot.status === "open" && requestBooking(slot.id)}
-                    disabled={slot.status !== "open"}
-                  >
-                    <span>{timeLabel(slot.startAt)}</span>
-                    <StatusPill value={slot.status} />
-                  </button>
-                ))}
-            </div>
-          </section>
+          ))}
+        </div>
+
+        {rows.map((row) => (
+          <div className="week-time-row" role="row" key={row.time}>
+            <span className="week-time-label">{row.time}</span>
+            {row.slots.map((slot, index) => {
+              const status = slot?.status ?? "empty";
+              const label = slot?.status === "blocked" ? "차단" : slot ? statusLabels[slot.status] : "없음";
+
+              return (
+                <button
+                  className={`week-cell ${status} ${selectedSlot?.id === slot?.id ? "selected" : ""}`}
+                  type="button"
+                  role="gridcell"
+                  key={`${row.time}-${visibleWeekDays[index]?.day ?? index}`}
+                  onClick={() => slot && setSelectedSlotId(slot.id)}
+                  disabled={!slot}
+                  aria-label={`${visibleWeekDays[index] ? weekdayLabel(visibleWeekDays[index].day) : ""} ${row.time} ${label}`}
+                >
+                  <span className="week-cell-status">{shortStatusLabel(status)}</span>
+                  <span className="week-cell-detail">{label}</span>
+                </button>
+              );
+            })}
+          </div>
         ))}
       </div>
+
+      <section className="week-selection-panel" aria-label="선택 예약 상세">
+        {selectedSlot ? (
+          <>
+            <div>
+              <p className="eyebrow">선택 시간</p>
+              <h3>{formatDateTime(selectedSlot.startAt)}</h3>
+              <p>{selectedSlot.status === "open" ? "예약 요청 가능" : statusLabels[selectedSlot.status]}</p>
+            </div>
+            <StatusPill value={selectedSlot.status} />
+            <div className="row-actions">
+              <button
+                className="primary-button"
+                onClick={() => requestBooking(selectedSlot.id)}
+                disabled={selectedSlot.status !== "open"}
+              >
+                예약 요청
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="empty-state">예약 가능한 시간이 없습니다.</div>
+        )}
+      </section>
     </section>
   );
 }
@@ -1595,6 +1673,40 @@ function buildSevenDayWeek(slots: AvailabilitySlot[]) {
   });
 
   return Array.from(groups.entries()).map(([day, daySlots]) => ({ day, slots: daySlots }));
+}
+
+function buildWeekTimeRows(weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>) {
+  const times = Array.from(
+    new Set(weekDays.flatMap((group) => group.slots.map((slot) => timeLabel(slot.startAt))))
+  ).sort();
+
+  return times.map((time) => ({
+    time,
+    slots: weekDays.map((group) => group.slots.find((slot) => timeLabel(slot.startAt) === time) ?? null)
+  }));
+}
+
+function firstChronologicalSlot(weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>) {
+  return [...weekDays.flatMap((group) => group.slots)].sort((a, b) => a.startAt.localeCompare(b.startAt))[0];
+}
+
+function shortStatusLabel(value: string) {
+  if (value === "open") {
+    return "가";
+  }
+  if (value === "requested" || value === "held") {
+    return "요";
+  }
+  if (value === "confirmed" || value === "completed") {
+    return "확";
+  }
+  if (value === "blocked") {
+    return "차";
+  }
+  if (value === "cancel_requested") {
+    return "취";
+  }
+  return "-";
 }
 
 function weekdayLabel(day: string) {

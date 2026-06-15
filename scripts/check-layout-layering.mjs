@@ -36,6 +36,26 @@ assert(
   "member shell should use the common flat app surface class"
 );
 
+assert(
+  component.includes('className="week-matrix"'),
+  "week detail screens should use a fixed seven-day time matrix"
+);
+
+assert(
+  component.includes('className="week-time-row"'),
+  "week matrix should align slots by shared time rows"
+);
+
+assert(
+  !component.includes('className="week-grid"') && !component.includes('className="week-grid member-week-grid"'),
+  "week detail screens must not use the old horizontally scrolling day-column grid"
+);
+
+assert(
+  !/\.week-grid\s*\{[^}]*overflow-x:\s*auto/s.test(css),
+  "week detail layout must not rely on horizontal overflow"
+);
+
 if (failures.length > 0) {
   console.error("Layout layering check failed:");
   for (const failure of failures) {
