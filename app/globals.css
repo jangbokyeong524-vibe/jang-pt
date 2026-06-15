@@ -1036,6 +1036,53 @@ textarea {
   margin-top: 10px;
 }
 
+.csv-export-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.csv-option-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.csv-option,
+.csv-privacy-option {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--row-radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.csv-option input,
+.csv-privacy-option input {
+  width: 20px;
+  min-height: 20px;
+  flex: 0 0 auto;
+  accent-color: var(--brand);
+}
+
+.csv-option span,
+.csv-privacy-option span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-note {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .template-grid textarea {
   min-height: 82px;
   resize: vertical;
@@ -1217,6 +1264,7 @@ textarea {
   }
 
   .available-grid,
+  .csv-option-grid,
   .metric-grid,
   .policy-grid,
   .template-grid {
@@ -1253,7 +1301,7 @@ textarea {
   }
 
   .admin-bottom-tabs {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .member-bottom-tabs {
@@ -1368,6 +1416,7 @@ textarea {
     grid-template-columns: repeat(3, minmax(170px, 1fr));
   }
 
+  .csv-option-grid,
   .template-grid,
   .member-dashboard {
     grid-template-columns: repeat(2, minmax(0, 1fr));

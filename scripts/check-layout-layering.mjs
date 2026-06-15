@@ -56,6 +56,31 @@ assert(
   "week detail layout must not rely on horizontal overflow"
 );
 
+assert(
+  !/type AdminTab = [^;]*summary/.test(component),
+  "admin tabs must not include the removed CRM summary tab"
+);
+
+assert(
+  !component.includes('label="CRM"'),
+  "admin bottom tabs must not include a CRM tab label"
+);
+
+assert(
+  !component.includes("SummaryView") && !component.includes("buildCrmSummary"),
+  "CRM summary view/helper must be removed in favor of settings CSV export"
+);
+
+assert(
+  component.includes("buildCsvExport") && component.includes("downloadCsvExport"),
+  "settings screen should provide CSV export helpers"
+);
+
+assert(
+  component.includes("개인정보 포함"),
+  "settings CSV export should include an opt-in personal data checkbox"
+);
+
 if (failures.length > 0) {
   console.error("Layout layering check failed:");
   for (const failure of failures) {

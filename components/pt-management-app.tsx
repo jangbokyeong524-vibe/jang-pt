@@ -37,8 +37,20 @@ import {
   toInputDate
 } from "@/lib/utils";
 
-type AdminTab = "home" | "week" | "members" | "settings" | "summary";
+type AdminTab = "home" | "week" | "members" | "settings";
 type MemberTab = "home" | "booking" | "history";
+type CsvDatasetKey =
+  | "members"
+  | "memberLinkRequests"
+  | "passes"
+  | "passEvents"
+  | "slots"
+  | "reservations"
+  | "payments"
+  | "paymentEvents"
+  | "extensionRequests"
+  | "passProducts"
+  | "policies";
 
 const statusLabels: Record<string, string> = {
   open: "가능",
@@ -64,6 +76,20 @@ const paymentOrder: PaymentStatus[] = [
   "refunded"
 ];
 
+const csvDatasetOptions: Array<{ key: CsvDatasetKey; label: string }> = [
+  { key: "members", label: "회원" },
+  { key: "memberLinkRequests", label: "회원 연결 요청" },
+  { key: "passes", label: "PT권" },
+  { key: "passEvents", label: "차감/연장 이력" },
+  { key: "slots", label: "예약 슬롯" },
+  { key: "reservations", label: "예약" },
+  { key: "payments", label: "결제" },
+  { key: "paymentEvents", label: "결제 변경 이력" },
+  { key: "extensionRequests", label: "연장 요청" },
+  { key: "passProducts", label: "PT 상품" },
+  { key: "policies", label: "운영 정책" }
+];
+
 export function PtManagementApp() {
   const [state, setState] = useState<AppState>(initialState);
   const [mode, setMode] = useState<"admin" | "member">("admin");
@@ -78,7 +104,6 @@ export function PtManagementApp() {
 
   const tasks = useMemo(() => buildTasks(state), [state]);
   const weekDays = useMemo(() => buildSevenDayWeek(state.slots), [state.slots]);
-  const crmSummary = useMemo(() => buildCrmSummary(state), [state]);
 
   function activePassFor(memberId: string) {
     return state.passes.find((pass) => pass.memberId === memberId && pass.active);
@@ -622,14 +647,11 @@ export function PtManagementApp() {
               />
             )}
 
-            {adminTab === "summary" && <SummaryView summary={crmSummary} />}
-
             <nav className="bottom-tabs admin-bottom-tabs" aria-label="관리자 메뉴">
               <TabButton active={adminTab === "home"} onClick={() => setAdminTab("home")} icon={<Home size={18} />} label="홈" />
               <TabButton active={adminTab === "week"} onClick={() => setAdminTab("week")} icon={<CalendarDays size={18} />} label="주간" />
               <TabButton active={adminTab === "members"} onClick={() => setAdminTab("members")} icon={<Users size={18} />} label="회원" />
               <TabButton active={adminTab === "settings"} onClick={() => setAdminTab("settings")} icon={<Settings size={18} />} label="설정" />
-              <TabButton active={adminTab === "summary"} onClick={() => setAdminTab("summary")} icon={<ClipboardList size={18} />} label="CRM" />
             </nav>
         </section>
       ) : (
@@ -1079,6 +1101,20 @@ function SettingsView({
   updatePolicy: (path: string, value: number | boolean | string) => void;
   updateProduct: (productId: string, field: "price" | "defaultValidDays" | "active", value: number | boolean) => void;
 }) {
+  const [selectedDatasets, setSelectedDatasets] = useState<CsvDatasetKey[]>([]);
+  const [includePersonalData, setIncludePersonalData] = useState(false);
+  const hasSelectedDatasets = selectedDatasets.length > 0;
+
+  function toggleDataset(dataset: CsvDatasetKey, checked: boolean) {
+    setSelectedDatasets((current) =>
+      checked ? [...current, dataset] : current.filter((item) => item !== dataset)
+    );
+  }
+
+  function handleDownloadCsv() {
+    downloadCsvExport(state, selectedDatasets, includePersonalData);
+  }
+
   return (
     <div className="settings-layout">
       <section className="section-band">
@@ -1208,6 +1244,49 @@ function SettingsView({
           </label>
         </div>
       </section>
+
+      <section className="section-band">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">데이터 보존</p>
+            <h2>CSV 내보내기</h2>
+          </div>
+          <button
+            className="primary-button"
+            type="button"
+            disabled={!hasSelectedDatasets}
+            onClick={handleDownloadCsv}
+          >
+            <ClipboardList size={16} />
+            다운로드
+          </button>
+        </div>
+        <div className="csv-export-panel">
+          <div className="csv-option-grid" aria-label="CSV 내보내기 데이터 선택">
+            {csvDatasetOptions.map((option) => (
+              <label className="csv-option" key={option.key}>
+                <input
+                  type="checkbox"
+                  checked={selectedDatasets.includes(option.key)}
+                  onChange={(event) => toggleDataset(option.key, event.target.checked)}
+                />
+                <span>{option.label}</span>
+              </label>
+            ))}
+          </div>
+          <label className="csv-privacy-option">
+            <input
+              type="checkbox"
+              checked={includePersonalData}
+              onChange={(event) => setIncludePersonalData(event.target.checked)}
+            />
+            <span>개인정보 포함</span>
+          </label>
+          <p className="settings-note">
+            선택한 항목은 한 파일로 저장됩니다. 개인정보 포함을 켜지 않으면 전화번호 필드는 제외됩니다.
+          </p>
+        </div>
+      </section>
     </div>
   );
 }
@@ -1218,27 +1297,6 @@ function PolicyInput({ label, value, onChange }: { label: string; value: number;
       <span>{label}</span>
       <input type="number" value={value} onChange={(event) => onChange(Number(event.target.value))} />
     </label>
-  );
-}
-
-function SummaryView({ summary }: { summary: string }) {
-  return (
-    <section className="section-band">
-      <div className="panel-heading">
-        <div>
-          <p className="eyebrow">비타민CRM</p>
-          <h2>복사용 요약</h2>
-        </div>
-        <button
-          className="primary-button"
-          onClick={() => navigator.clipboard?.writeText(summary)}
-        >
-          <ClipboardList size={16} />
-          복사
-        </button>
-      </div>
-      <textarea className="summary-box" readOnly value={summary} />
-    </section>
   );
 }
 
@@ -1729,31 +1787,125 @@ function dayDate(day: string) {
   return new Date(`${day}T12:00:00Z`);
 }
 
-function buildCrmSummary(state: AppState) {
-  const completed = state.reservations.filter((reservation) => reservation.status === "completed");
-  const cancelled = state.reservations.filter((reservation) => reservation.status === "cancelled");
-  const payments = state.payments.filter((payment) => payment.status === "paid" || payment.status === "refunded");
+function buildCsvExport(state: AppState, datasets: CsvDatasetKey[], includePersonalData: boolean) {
+  const exportedAt = new Date().toISOString();
+  const rows = [["exported_at", "dataset", "record_id", "field", "value"]];
 
-  const lines = [
-    `[강동무에타이장 PT 요약] ${new Date().toLocaleDateString("ko-KR")}`,
-    "",
-    "수업완료",
-    ...completed.map((reservation) => `- ${memberById(state, reservation.memberId)} / 1회 차감`),
-    completed.length === 0 ? "- 없음" : "",
-    "",
-    "취소/예외",
-    ...cancelled.map((reservation) => {
-      const label = reservation.deductOnCancel ? "차감" : "미차감";
-      return `- ${memberById(state, reservation.memberId)} / ${label} / ${reservation.cancelReason ?? "사유 없음"}`;
-    }),
-    cancelled.length === 0 ? "- 없음" : "",
-    "",
-    "결제/환불",
-    ...payments.map((payment) => `- ${memberById(state, payment.memberId)} / ${statusLabels[payment.status]} / ${formatWon(payment.amount)}`),
-    payments.length === 0 ? "- 없음" : ""
-  ];
+  for (const dataset of datasets) {
+    for (const record of recordsForCsvDataset(state, dataset)) {
+      for (const [field, value] of Object.entries(record.value)) {
+        if (!includePersonalData && isPersonalCsvField(dataset, field)) {
+          continue;
+        }
+        rows.push([exportedAt, record.dataset, record.id, field, stringifyCsvValue(value)]);
+      }
+    }
+  }
 
-  return lines.filter((line, index, array) => !(line === "" && array[index - 1] === "")).join("\n");
+  return rows.map((row) => row.map(escapeCsvCell).join(",")).join("\n");
+}
+
+function downloadCsvExport(state: AppState, datasets: CsvDatasetKey[], includePersonalData: boolean) {
+  if (datasets.length === 0 || typeof document === "undefined") {
+    return;
+  }
+
+  const csv = buildCsvExport(state, datasets, includePersonalData);
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `gangdong-pt-export-${localDateStamp()}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function recordsForCsvDataset(state: AppState, dataset: CsvDatasetKey) {
+  if (dataset === "passProducts") {
+    return state.policies.passProducts.map((product) => ({
+      dataset: "pt_pass_products",
+      id: product.id,
+      value: product as Record<string, unknown>
+    }));
+  }
+
+  if (dataset === "policies") {
+    const { passProducts, ...policies } = state.policies;
+    return [
+      {
+        dataset: "policy_settings",
+        id: "current",
+        value: policies as Record<string, unknown>
+      }
+    ];
+  }
+
+  const values: Record<Exclude<CsvDatasetKey, "passProducts" | "policies">, Array<Record<string, unknown>>> = {
+    members: state.members,
+    memberLinkRequests: state.memberLinkRequests,
+    passes: state.passes,
+    passEvents: state.passEvents,
+    slots: state.slots,
+    reservations: state.reservations,
+    payments: state.payments,
+    paymentEvents: state.paymentEvents,
+    extensionRequests: state.extensionRequests
+  };
+
+  return values[dataset].map((item) => ({
+    dataset: csvDatasetName(dataset),
+    id: String(item.id ?? "unknown"),
+    value: item
+  }));
+}
+
+function csvDatasetName(dataset: CsvDatasetKey) {
+  const names: Record<CsvDatasetKey, string> = {
+    members: "members",
+    memberLinkRequests: "member_link_requests",
+    passes: "pt_passes",
+    passEvents: "pass_events",
+    slots: "availability_slots",
+    reservations: "reservations",
+    payments: "payments",
+    paymentEvents: "payment_events",
+    extensionRequests: "extension_requests",
+    passProducts: "pt_pass_products",
+    policies: "policy_settings"
+  };
+
+  return names[dataset];
+}
+
+function isPersonalCsvField(dataset: CsvDatasetKey, field: string) {
+  return (
+    (dataset === "members" && (field === "phone" || field === "normalizedPhone")) ||
+    (dataset === "memberLinkRequests" && (field === "inputPhone" || field === "normalizedPhone"))
+  );
+}
+
+function stringifyCsvValue(value: unknown) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function escapeCsvCell(value: string) {
+  return /[",\n\r]/.test(value) ? `"${value.replaceAll("\"", "\"\"")}"` : value;
+}
+
+function localDateStamp() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function shouldRenew(pass: PtPass, state: AppState) {
