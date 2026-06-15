@@ -1,6 +1,6 @@
 # STATUS
 
-updated: 2026-06-13
+updated: 2026-06-15
 mode: codex-resume-index
 phase: prototype-docs-baseline
 
@@ -22,6 +22,7 @@ phase: prototype-docs-baseline
 ## Current State
 
 - Local demo UI exists and runs from `lib/seed-data.ts`.
+- `./Start.sh` starts the local Next.js dev server and installs dependencies with `npm ci` when needed.
 - Supabase schema/docs are target design only.
 - Kakao/Google Auth, RLS, and DB transactions are not wired to the UI.
 - Mobile-first design is part of the baseline.
@@ -41,7 +42,8 @@ phase: prototype-docs-baseline
 
 ## Last Verified
 
-- 2026-06-13: `npm.cmd run build` passed.
+- 2026-06-15: `npm run build` passed.
+- 2026-06-15: `timeout 8s ./Start.sh` reached Next.js `Ready` before timeout.
 
 ## Read If Task Matches
 
