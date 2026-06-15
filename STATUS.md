@@ -2,7 +2,7 @@
 
 updated: 2026-06-15
 mode: codex-resume-index
-phase: reservation-rpc-boundary
+phase: pt-member-booking-mvp-docs
 
 ## Rules
 
@@ -19,6 +19,9 @@ phase: reservation-rpc-boundary
 
 ## Current State
 
+- Product scope is now documented as a PT member booking MVP, not a full gym management app.
+- MVP includes member PT status, member reservation request/cancel, admin approval/rejection, session completion deduction, late-cancel deduction decisions, manual payment status, member linking, renewal prompts, and CSV export.
+- MVP excludes group classes, general gym attendance, lockers, product sales, full accounting dashboards, automated Kakao sending, PG payments, BOX POS API integration, and VitaminCRM automation.
 - Local demo UI exists and runs from `lib/seed-data.ts`.
 - Supabase project is not connected, but reservation state changes now have a target RPC boundary in `docs/supabase-schema.sql`.
 - Reservation request/approve/reject/cancel/late-cancel/complete operations are represented by `lib/reservation-actions.ts`.
@@ -39,11 +42,11 @@ phase: reservation-rpc-boundary
 
 ## Next Actions
 
-1. Apply `docs/supabase-schema.sql` to a real Supabase project and run manual RPC integration checks from `docs/TEST_PLAN.md`.
-2. Start Supabase Auth callback design.
-3. Replace the demo admin/member switch with account role routing.
-4. Wire DB reads/refetch after reservation RPC calls.
-5. Design payment status and extension approval RPCs.
+1. Improve the visible member reservation MVP flow: member home status, booking selection, requested/confirmed/cancel_requested copy, and payment warnings.
+2. Wire DB reads/refetch after reservation RPC calls.
+3. Design payment status and extension approval RPCs.
+4. Start Supabase Auth callback design and replace the demo admin/member switch with account role routing.
+5. Apply `docs/supabase-schema.sql` to a real Supabase project and run manual RPC integration checks from `docs/TEST_PLAN.md` once project credentials exist.
 
 ## Blockers
 
@@ -51,6 +54,7 @@ phase: reservation-rpc-boundary
 
 ## Last Verified
 
+- 2026-06-15: PT member booking MVP docs updated and verified with `git diff --check`, `npm run check:layout`, and `npm run build`.
 - 2026-06-15: Reservation RPC boundary verified with RED `npm run check:layout` failure before implementation, then `npm run check:layout`, `git diff --check`, and `npm run build`.
 - 2026-06-15: Settings menu depth and 4-tab alignment verified with `npm run check:layout`, `git diff --check`, `npm run build`, and Playwright rendered checks at 320px, 390px, and 1280px against `http://127.0.0.1:3003/`.
 - 2026-06-15: Browser checks verified settings root-only menu, policy submenu depth, back navigation, CSV disabled/enabled state, filename/header, and 개인정보 off/on phone behavior.
