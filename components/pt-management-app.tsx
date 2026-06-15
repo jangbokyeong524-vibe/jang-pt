@@ -576,7 +576,7 @@ export function PtManagementApp() {
       </section>
 
       {mode === "admin" ? (
-        <section className={adminTab === "home" ? "workspace admin-home-workspace with-bottom-nav" : "workspace with-bottom-nav"}>
+        <section className="app-surface-flat with-bottom-nav">
             {adminTab === "home" && (
               <AdminHomeView
                 tasks={tasks}
@@ -753,7 +753,7 @@ function ScheduleView({
   resolveLateCancel: (reservationId: string, deduct: boolean) => void;
 }) {
   return (
-    <section className="section-band week-screen">
+    <section className="week-screen">
       <div className="panel-heading">
         <div>
           <p className="eyebrow">주간 시간표</p>
@@ -1241,7 +1241,7 @@ function MemberView({
   const approvedLink = true;
 
   return (
-    <section className="member-app with-bottom-nav">
+    <section className="member-app app-surface-flat with-bottom-nav">
       <div className="toolbar">
         <select value={memberSessionId} onChange={(event) => setMemberSessionId(event.target.value)} aria-label="회원 데모 계정">
           {state.members.map((item) => (
@@ -1368,7 +1368,7 @@ function MemberBookingView({
   const visibleUntil = addDays(new Date(), state.policies.booking.publishWeeks * 7).getTime();
 
   return (
-    <section className="section-band week-screen">
+    <section className="week-screen">
       <div className="panel-heading">
         <div>
           <p className="eyebrow">예약</p>

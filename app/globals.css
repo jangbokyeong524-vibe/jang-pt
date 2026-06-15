@@ -216,10 +216,8 @@ h3 {
 }
 
 .task-panel,
-.workspace,
 .detail-panel,
-.section-band,
-.member-app {
+.section-band {
   border: 1px solid var(--line);
   border-radius: var(--panel-radius);
   background: rgba(255, 255, 255, 0.92);
@@ -347,16 +345,21 @@ h3 {
   border-color: rgba(0, 102, 204, 0.12);
 }
 
-.workspace {
+.workspace,
+.member-app,
+.app-surface-flat {
   min-width: 0;
-  padding: 10px;
-}
-
-.admin-home-workspace {
+  max-width: 100%;
+  overflow-x: hidden;
   border: 0;
   background: transparent;
   box-shadow: none;
   padding: 0;
+}
+
+.member-app {
+  display: grid;
+  gap: 12px;
 }
 
 .with-bottom-nav {
@@ -431,9 +434,12 @@ h3 {
   display: grid;
   grid-template-columns: repeat(7, minmax(82px, 1fr));
   gap: 8px;
+  max-width: 100%;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
   padding-bottom: 4px;
   scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
 .week-summary-grid {
@@ -445,6 +451,14 @@ h3 {
 
 .week-day {
   min-width: 0;
+}
+
+.week-screen {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .week-summary-cell {
@@ -899,10 +913,6 @@ textarea {
   line-height: 1.6;
 }
 
-.member-app {
-  padding: 14px;
-}
-
 .member-dashboard {
   display: grid;
   grid-template-columns: 1fr;
@@ -1118,8 +1128,10 @@ textarea {
     padding: 16px;
   }
 
-  .workspace {
-    padding: 14px;
+  .workspace,
+  .member-app,
+  .app-surface-flat {
+    padding: 0;
   }
 
   .week-grid {
@@ -1150,8 +1162,7 @@ textarea {
   }
 
   .detail-panel,
-  .section-band,
-  .member-app {
+  .section-band {
     padding: 16px;
   }
 
