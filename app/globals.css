@@ -216,10 +216,8 @@ h3 {
 }
 
 .task-panel,
-.workspace,
 .detail-panel,
-.section-band,
-.member-app {
+.section-band {
   border: 1px solid var(--line);
   border-radius: var(--panel-radius);
   background: rgba(255, 255, 255, 0.92);
@@ -347,16 +345,21 @@ h3 {
   border-color: rgba(0, 102, 204, 0.12);
 }
 
-.workspace {
+.workspace,
+.member-app,
+.app-surface-flat {
   min-width: 0;
-  padding: 10px;
-}
-
-.admin-home-workspace {
+  max-width: 100%;
+  overflow-x: hidden;
   border: 0;
   background: transparent;
   box-shadow: none;
   padding: 0;
+}
+
+.member-app {
+  display: grid;
+  gap: 12px;
 }
 
 .with-bottom-nav {
@@ -369,9 +372,9 @@ h3 {
   right: 10px;
   bottom: calc(10px + env(safe-area-inset-bottom));
   z-index: 30;
-  display: flex;
+  display: grid;
   gap: 4px;
-  overflow-x: auto;
+  overflow: hidden;
   overscroll-behavior-x: contain;
   padding: 5px;
   border: 1px solid rgba(224, 224, 224, 0.86);
@@ -388,16 +391,15 @@ h3 {
 }
 
 .admin-bottom-tabs {
-  scroll-snap-type: x proximity;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .member-bottom-tabs {
-  scroll-snap-type: x proximity;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .tab {
-  flex: 0 0 70px;
-  min-width: 70px;
+  min-width: 0;
   min-height: 52px;
   padding: 0 6px;
   flex-direction: column;
@@ -407,7 +409,6 @@ h3 {
   color: var(--muted);
   font-size: 11px;
   font-weight: 700;
-  scroll-snap-align: start;
   white-space: nowrap;
 }
 
@@ -422,18 +423,19 @@ h3 {
 .small-button:not(.danger):hover,
 .icon-button:hover,
 .available-slot:hover,
-.member-row:hover {
+.member-row:hover,
+.settings-menu-button:hover {
   border-color: rgba(0, 102, 204, 0.28);
   background: var(--info-bg);
 }
 
 .week-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(82px, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
-  overflow-x: auto;
+  max-width: 100%;
+  overflow: visible;
   padding-bottom: 4px;
-  scrollbar-width: thin;
 }
 
 .week-summary-grid {
@@ -445,6 +447,167 @@ h3 {
 
 .week-day {
   min-width: 0;
+}
+
+.week-screen {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.week-matrix {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.week-matrix-header,
+.week-time-row {
+  display: grid;
+  grid-template-columns: 38px repeat(7, minmax(0, 1fr));
+  gap: 3px;
+  min-width: 0;
+}
+
+.week-matrix .week-day-heading {
+  min-height: 44px;
+  margin-bottom: 0;
+  padding: 5px 1px;
+  border-radius: 10px;
+}
+
+.week-time-label {
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.week-cell {
+  min-width: 0;
+  min-height: 46px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
+  padding: 4px 2px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: center;
+}
+
+.week-cell.selected {
+  border-color: rgba(0, 102, 204, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(0, 102, 204, 0.18);
+}
+
+.week-cell:disabled {
+  opacity: 1;
+}
+
+.week-cell-status {
+  display: inline-grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  border-radius: 999px;
+  background: #eeeeef;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.week-cell-detail {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.week-cell.open,
+.week-cell.open .week-cell-status {
+  border-color: rgba(0, 102, 204, 0.22);
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.week-cell.held,
+.week-cell.requested,
+.week-cell.held .week-cell-status,
+.week-cell.requested .week-cell-status {
+  border-color: rgba(138, 90, 0, 0.22);
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.week-cell.confirmed,
+.week-cell.completed,
+.week-cell.confirmed .week-cell-status,
+.week-cell.completed .week-cell-status {
+  border-color: rgba(31, 122, 69, 0.22);
+  background: var(--good-bg);
+  color: var(--good);
+}
+
+.week-cell.blocked,
+.week-cell.empty,
+.week-cell.blocked .week-cell-status,
+.week-cell.empty .week-cell-status {
+  border-color: var(--line-soft);
+  background: #eeeeef;
+  color: var(--muted);
+}
+
+.week-selection-panel {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--row-radius);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.week-selection-panel > div:first-child {
+  min-width: 0;
+}
+
+.week-selection-panel h3 {
+  font-size: 18px;
+  line-height: 1.18;
+}
+
+.week-selection-panel p:not(.eyebrow) {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.week-selection-panel > .status-pill {
+  justify-self: start;
+}
+
+.week-selection-panel .row-actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-self: end;
 }
 
 .week-summary-cell {
@@ -820,6 +983,63 @@ textarea {
   gap: 14px;
 }
 
+.settings-menu-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.settings-menu-button,
+.settings-detail-header {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--row-radius);
+  background: var(--surface);
+}
+
+.settings-menu-button {
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 68px;
+  padding: 13px 14px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.settings-menu-button span {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.settings-menu-button strong {
+  font-size: 15px;
+}
+
+.settings-menu-button small {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.settings-menu-button b {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.settings-detail-header {
+  justify-content: start;
+  gap: 12px;
+  padding: 12px;
+}
+
 .product-table {
   display: grid;
   gap: 8px;
@@ -872,6 +1092,53 @@ textarea {
   margin-top: 10px;
 }
 
+.csv-export-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.csv-option-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.csv-option,
+.csv-privacy-option {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--row-radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.csv-option input,
+.csv-privacy-option input {
+  width: 20px;
+  min-height: 20px;
+  flex: 0 0 auto;
+  accent-color: var(--brand);
+}
+
+.csv-option span,
+.csv-privacy-option span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-note {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .template-grid textarea {
   min-height: 82px;
   resize: vertical;
@@ -897,10 +1164,6 @@ textarea {
   padding: 14px;
   resize: vertical;
   line-height: 1.6;
-}
-
-.member-app {
-  padding: 14px;
 }
 
 .member-dashboard {
@@ -1057,8 +1320,10 @@ textarea {
   }
 
   .available-grid,
+  .csv-option-grid,
   .metric-grid,
   .policy-grid,
+  .settings-menu-grid,
   .template-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1093,7 +1358,7 @@ textarea {
   }
 
   .admin-bottom-tabs {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .member-bottom-tabs {
@@ -1102,7 +1367,6 @@ textarea {
 
   .tab {
     min-width: 0;
-    flex: 1 1 auto;
     min-height: 48px;
     flex-direction: row;
     font-size: 13px;
@@ -1118,14 +1382,60 @@ textarea {
     padding: 16px;
   }
 
-  .workspace {
-    padding: 14px;
+  .workspace,
+  .member-app,
+  .app-surface-flat {
+    padding: 0;
   }
 
   .week-grid {
     grid-template-columns: repeat(7, minmax(0, 1fr));
     overflow-x: visible;
     gap: 10px;
+  }
+
+  .week-matrix {
+    gap: 8px;
+  }
+
+  .week-matrix-header,
+  .week-time-row {
+    grid-template-columns: 58px repeat(7, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .week-matrix .week-day-heading {
+    min-height: 48px;
+    padding: 6px;
+  }
+
+  .week-time-label {
+    font-size: 13px;
+  }
+
+  .week-cell {
+    min-height: 78px;
+    gap: 7px;
+    padding: 10px;
+    border-radius: var(--row-radius);
+  }
+
+  .week-cell-status {
+    width: auto;
+    min-width: 34px;
+    height: 26px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .week-cell-detail {
+    font-size: 13px;
+    line-height: 1.25;
+  }
+
+  .week-selection-panel {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    padding: 14px;
   }
 
   .week-summary-grid {
@@ -1150,8 +1460,7 @@ textarea {
   }
 
   .detail-panel,
-  .section-band,
-  .member-app {
+  .section-band {
     padding: 16px;
   }
 
@@ -1163,6 +1472,8 @@ textarea {
     grid-template-columns: repeat(3, minmax(170px, 1fr));
   }
 
+  .csv-option-grid,
+  .settings-menu-grid,
   .template-grid,
   .member-dashboard {
     grid-template-columns: repeat(2, minmax(0, 1fr));

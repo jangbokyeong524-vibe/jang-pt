@@ -16,7 +16,16 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+import {
+  approveReservationAction,
+  completeSessionAction,
+  rejectReservationAction,
+  requestReservationAction,
+  requestReservationCancelAction,
+  resolveLateCancelAction
+} from "@/lib/reservation-actions";
 import { initialState } from "@/lib/seed-data";
+import { createBrowserSupabaseClient } from "@/lib/supabase";
 import type {
   AppState,
   AvailabilitySlot,
@@ -37,8 +46,22 @@ import {
   toInputDate
 } from "@/lib/utils";
 
-type AdminTab = "home" | "week" | "members" | "settings" | "summary";
+type AdminTab = "home" | "week" | "members" | "settings";
 type MemberTab = "home" | "booking" | "history";
+type SettingsSection = "root" | "products" | "policies" | "templates" | "csv";
+type PolicySection = "booking" | "cancellation" | "extension" | "renewal" | null;
+type CsvDatasetKey =
+  | "members"
+  | "memberLinkRequests"
+  | "passes"
+  | "passEvents"
+  | "slots"
+  | "reservations"
+  | "payments"
+  | "paymentEvents"
+  | "extensionRequests"
+  | "passProducts"
+  | "policies";
 
 const statusLabels: Record<string, string> = {
   open: "가능",
@@ -64,6 +87,20 @@ const paymentOrder: PaymentStatus[] = [
   "refunded"
 ];
 
+const csvDatasetOptions: Array<{ key: CsvDatasetKey; label: string }> = [
+  { key: "members", label: "회원" },
+  { key: "memberLinkRequests", label: "회원 연결 요청" },
+  { key: "passes", label: "PT권" },
+  { key: "passEvents", label: "차감/연장 이력" },
+  { key: "slots", label: "예약 슬롯" },
+  { key: "reservations", label: "예약" },
+  { key: "payments", label: "결제" },
+  { key: "paymentEvents", label: "결제 변경 이력" },
+  { key: "extensionRequests", label: "연장 요청" },
+  { key: "passProducts", label: "PT 상품" },
+  { key: "policies", label: "운영 정책" }
+];
+
 export function PtManagementApp() {
   const [state, setState] = useState<AppState>(initialState);
   const [mode, setMode] = useState<"admin" | "member">("admin");
@@ -72,13 +109,13 @@ export function PtManagementApp() {
   const [selectedMemberId, setSelectedMemberId] = useState("member_1");
   const [memberSessionId, setMemberSessionId] = useState("member_3");
   const [message, setMessage] = useState("데모 데이터가 로드되었습니다.");
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const selectedMember = state.members.find((member) => member.id === selectedMemberId) ?? state.members[0];
   const loggedInMember = state.members.find((member) => member.id === memberSessionId) ?? state.members[0];
 
   const tasks = useMemo(() => buildTasks(state), [state]);
   const weekDays = useMemo(() => buildSevenDayWeek(state.slots), [state.slots]);
-  const crmSummary = useMemo(() => buildCrmSummary(state), [state]);
 
   function activePassFor(memberId: string) {
     return state.passes.find((pass) => pass.memberId === memberId && pass.active);
@@ -108,239 +145,316 @@ export function PtManagementApp() {
     setMessage("회원 연결을 승인했습니다.");
   }
 
-  function approveReservation(reservationId: string) {
-    setState((current) => ({
-      ...current,
-      reservations: current.reservations.map((reservation) =>
-        reservation.id === reservationId
-          ? { ...reservation, status: "confirmed", confirmedAt: new Date().toISOString() }
-          : reservation
-      ),
-      slots: current.slots.map((slot) =>
-        current.reservations.find((reservation) => reservation.id === reservationId)?.slotId === slot.id
-          ? { ...slot, status: "confirmed", heldUntil: undefined, reservationId }
-          : slot
-      )
-    }));
-    setMessage("예약을 확정했습니다.");
+  async function approveReservation(reservationId: string) {
+    try {
+      await approveReservationAction({
+        supabase,
+        targetReservationId: reservationId,
+        fallback: () => {
+          setState((current) => ({
+            ...current,
+            reservations: current.reservations.map((reservation) =>
+              reservation.id === reservationId
+                ? { ...reservation, status: "confirmed", confirmedAt: new Date().toISOString() }
+                : reservation
+            ),
+            slots: current.slots.map((slot) =>
+              current.reservations.find((reservation) => reservation.id === reservationId)?.slotId === slot.id
+                ? { ...slot, status: "confirmed", heldUntil: undefined, reservationId }
+                : slot
+            )
+          }));
+        }
+      });
+      setMessage("예약을 확정했습니다.");
+    } catch {
+      setMessage("예약 확정 처리에 실패했습니다.");
+    }
   }
 
-  function rejectReservation(reservationId: string) {
-    setState((current) => {
-      const reservation = current.reservations.find((item) => item.id === reservationId);
+  async function rejectReservation(reservationId: string) {
+    try {
+      await rejectReservationAction({
+        supabase,
+        targetReservationId: reservationId,
+        fallback: () => {
+          setState((current) => {
+            const reservation = current.reservations.find((item) => item.id === reservationId);
 
-      return {
-        ...current,
-        reservations: current.reservations.map((item) =>
-          item.id === reservationId ? { ...item, status: "cancelled", cancelledAt: new Date().toISOString() } : item
-        ),
-        slots: current.slots.map((slot) =>
-          reservation?.slotId === slot.id
-            ? { ...slot, status: "open", heldUntil: undefined, reservationId: undefined }
-            : slot
-        )
-      };
-    });
-    setMessage("예약 요청을 거절하고 슬롯을 다시 열었습니다.");
+            return {
+              ...current,
+              reservations: current.reservations.map((item) =>
+                item.id === reservationId ? { ...item, status: "cancelled", cancelledAt: new Date().toISOString() } : item
+              ),
+              slots: current.slots.map((slot) =>
+                reservation?.slotId === slot.id
+                  ? { ...slot, status: "open", heldUntil: undefined, reservationId: undefined }
+                  : slot
+              )
+            };
+          });
+        }
+      });
+      setMessage("예약 요청을 거절하고 슬롯을 다시 열었습니다.");
+    } catch {
+      setMessage("예약 거절 처리에 실패했습니다.");
+    }
   }
 
-  function completeSession(reservationId: string) {
-    setState((current) => {
-      const reservation = current.reservations.find((item) => item.id === reservationId);
-      if (!reservation || reservation.status !== "confirmed") {
-        return current;
-      }
+  async function completeSession(reservationId: string) {
+    try {
+      await completeSessionAction({
+        supabase,
+        targetReservationId: reservationId,
+        fallback: () => {
+          setState((current) => {
+            const reservation = current.reservations.find((item) => item.id === reservationId);
+            if (!reservation || reservation.status !== "confirmed") {
+              return current;
+            }
 
-      const pass = current.passes.find((item) => item.id === reservation.passId);
-      if (!pass || pass.remainingSessions < 1) {
-        return current;
-      }
+            const pass = current.passes.find((item) => item.id === reservation.passId);
+            if (!pass || pass.remainingSessions < 1) {
+              return current;
+            }
 
-      return {
-        ...current,
-        reservations: current.reservations.map((item) =>
-          item.id === reservationId
-            ? { ...item, status: "completed", completedAt: new Date().toISOString() }
-            : item
-        ),
-        passes: current.passes.map((item) =>
-          item.id === pass.id ? { ...item, remainingSessions: item.remainingSessions - 1 } : item
-        ),
-        passEvents: [
-          {
-            id: makeId("event"),
-            passId: pass.id,
-            memberId: pass.memberId,
-            reservationId,
-            eventType: "session_completed",
-            deltaCount: -1,
-            reason: "수업완료",
-            actor: "admin",
-            createdAt: new Date().toISOString()
-          },
-          ...current.passEvents
-        ]
-      };
-    });
-    setMessage("수업완료 처리와 1회 차감을 기록했습니다.");
+            return {
+              ...current,
+              reservations: current.reservations.map((item) =>
+                item.id === reservationId
+                  ? { ...item, status: "completed", completedAt: new Date().toISOString() }
+                  : item
+              ),
+              passes: current.passes.map((item) =>
+                item.id === pass.id ? { ...item, remainingSessions: item.remainingSessions - 1 } : item
+              ),
+              passEvents: [
+                {
+                  id: makeId("event"),
+                  passId: pass.id,
+                  memberId: pass.memberId,
+                  reservationId,
+                  eventType: "session_completed",
+                  deltaCount: -1,
+                  reason: "수업완료",
+                  actor: "admin",
+                  createdAt: new Date().toISOString()
+                },
+                ...current.passEvents
+              ]
+            };
+          });
+        }
+      });
+      setMessage("수업완료 처리와 1회 차감을 기록했습니다.");
+    } catch {
+      setMessage("수업완료 처리에 실패했습니다.");
+    }
   }
 
-  function requestBooking(slotId: string) {
+  async function requestBooking(slotId: string) {
     const pass = activePassFor(memberSessionId);
     if (!pass) {
       setMessage("활성 PT권이 없습니다.");
       return;
     }
 
-    const futureReservations = reservationsFor(memberSessionId).filter((reservation) =>
-      ["requested", "confirmed"].includes(reservation.status)
-    );
+    try {
+      await requestReservationAction({
+        supabase,
+        targetSlotId: slotId,
+        targetPassId: pass.id,
+        fallback: () => {
+          const futureReservations = reservationsFor(memberSessionId).filter((reservation) =>
+            ["requested", "confirmed", "cancel_requested"].includes(reservation.status)
+          );
 
-    const bookingLimit =
-      state.policies.booking.memberFutureBookingLimit === "remaining_sessions"
-        ? pass.remainingSessions
-        : state.policies.booking.memberFutureBookingLimit === "fixed_count"
-          ? state.policies.booking.fixedFutureBookingLimit
-          : Number.POSITIVE_INFINITY;
+          const bookingLimit =
+            state.policies.booking.memberFutureBookingLimit === "remaining_sessions"
+              ? pass.remainingSessions
+              : state.policies.booking.memberFutureBookingLimit === "fixed_count"
+                ? state.policies.booking.fixedFutureBookingLimit
+                : Number.POSITIVE_INFINITY;
 
-    if (futureReservations.length >= bookingLimit) {
-      setMessage("잔여횟수보다 많은 예약은 요청할 수 없습니다.");
-      return;
-    }
-
-    if (!state.policies.booking.allowUnpaidBooking && pass.paymentStatus !== "paid") {
-      setMessage("현재 정책에서는 결제완료 전 예약 요청이 제한됩니다.");
-      return;
-    }
-
-    const reservationId = makeId("reservation");
-    const lockedUntil = addHours(new Date(), state.policies.booking.requestExpiryHours).toISOString();
-
-    setState((current) => ({
-      ...current,
-      slots: current.slots.map((slot) =>
-        slot.id === slotId ? { ...slot, status: "held", heldUntil: lockedUntil, reservationId } : slot
-      ),
-      reservations: [
-        {
-          id: reservationId,
-          memberId: memberSessionId,
-          passId: pass.id,
-          slotId,
-          status: "requested",
-          requestedAt: new Date().toISOString(),
-          lockedUntil,
-          policySnapshot: {
-            requestExpiryHours: current.policies.booking.requestExpiryHours,
-            autoCancelHoursBeforeSession: current.policies.cancellation.autoCancelHoursBeforeSession,
-            lateCancelDefaultDeduct: current.policies.cancellation.lateCancelDefaultDeduct
+          if (futureReservations.length >= bookingLimit) {
+            throw new Error("future booking limit exceeded");
           }
-        },
-        ...current.reservations
-      ]
-    }));
-    setMessage("예약 요청을 보냈습니다. 관장 승인 전까지 슬롯이 잠깁니다.");
-  }
 
-  function requestCancel(reservationId: string) {
-    setState((current) => {
-      const reservation = current.reservations.find((item) => item.id === reservationId);
-      const slot = reservation ? current.slots.find((item) => item.id === reservation.slotId) : undefined;
+          if (!state.policies.booking.allowUnpaidBooking && pass.paymentStatus !== "paid") {
+            throw new Error("payment required before booking");
+          }
 
-      if (!reservation || !slot) {
-        return current;
-      }
+          const reservationId = makeId("reservation");
+          const lockedUntil = addHours(new Date(), state.policies.booking.requestExpiryHours).toISOString();
 
-      const canAutoCancel =
-        hoursUntil(slot.startAt) >= current.policies.cancellation.autoCancelHoursBeforeSession;
-
-      if (canAutoCancel) {
-        return {
-          ...current,
-          reservations: current.reservations.map((item) =>
-            item.id === reservationId
-              ? {
-                  ...item,
-                  status: "cancelled",
-                  cancelledAt: new Date().toISOString(),
-                  cancelReason: "회원 자동취소",
-                  deductOnCancel: false
-                }
-              : item
-          ),
-          slots: current.slots.map((item) =>
-            item.id === slot.id ? { ...item, status: "open", reservationId: undefined } : item
-          )
-        };
-      }
-
-      return {
-        ...current,
-        reservations: current.reservations.map((item) =>
-          item.id === reservationId
-            ? {
-                ...item,
-                status: "cancel_requested",
-                cancelReason: "회원 취소요청",
-                deductOnCancel: current.policies.cancellation.lateCancelDefaultDeduct
-              }
-            : item
-        )
-      };
-    });
-    setMessage("취소 요청을 처리했습니다.");
-  }
-
-  function resolveLateCancel(reservationId: string, deduct: boolean) {
-    setState((current) => {
-      const reservation = current.reservations.find((item) => item.id === reservationId);
-      const pass = reservation ? current.passes.find((item) => item.id === reservation.passId) : undefined;
-
-      if (!reservation || !pass) {
-        return current;
-      }
-
-      return {
-        ...current,
-        reservations: current.reservations.map((item) =>
-          item.id === reservationId
-            ? {
-                ...item,
-                status: "cancelled",
-                cancelledAt: new Date().toISOString(),
-                deductOnCancel: deduct
-              }
-            : item
-        ),
-        slots: current.slots.map((slot) =>
-          slot.id === reservation.slotId ? { ...slot, status: "open", reservationId: undefined } : slot
-        ),
-        passes: deduct
-          ? current.passes.map((item) =>
-              item.id === pass.id
-                ? { ...item, remainingSessions: Math.max(0, item.remainingSessions - 1) }
-                : item
-            )
-          : current.passes,
-        passEvents: deduct
-          ? [
+          setState((current) => ({
+            ...current,
+            slots: current.slots.map((slot) =>
+              slot.id === slotId ? { ...slot, status: "held", heldUntil: lockedUntil, reservationId } : slot
+            ),
+            reservations: [
               {
-                id: makeId("event"),
+                id: reservationId,
+                memberId: memberSessionId,
                 passId: pass.id,
-                memberId: pass.memberId,
-                reservationId,
-                eventType: "late_cancel_deducted",
-                deltaCount: -1,
-                reason: "24시간 이내 취소 차감",
-                actor: "admin",
-                createdAt: new Date().toISOString()
+                slotId,
+                status: "requested",
+                requestedAt: new Date().toISOString(),
+                lockedUntil,
+                policySnapshot: {
+                  requestExpiryHours: current.policies.booking.requestExpiryHours,
+                  autoCancelHoursBeforeSession: current.policies.cancellation.autoCancelHoursBeforeSession,
+                  lateCancelDefaultDeduct: current.policies.cancellation.lateCancelDefaultDeduct
+                }
               },
-              ...current.passEvents
+              ...current.reservations
             ]
-          : current.passEvents
-      };
-    });
-    setMessage(deduct ? "취소 차감을 기록했습니다." : "미차감 예외로 처리했습니다.");
+          }));
+
+          return reservationId;
+        }
+      });
+      setMessage("예약 요청을 보냈습니다. 관장 승인 전까지 슬롯이 잠깁니다.");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "";
+      setMessage(
+        errorMessage === "payment required before booking"
+          ? "현재 정책에서는 결제완료 전 예약 요청이 제한됩니다."
+          : errorMessage === "future booking limit exceeded"
+            ? "잔여횟수보다 많은 예약은 요청할 수 없습니다."
+            : "예약 요청 처리에 실패했습니다."
+      );
+    }
+  }
+
+  async function requestCancel(reservationId: string) {
+    try {
+      await requestReservationCancelAction({
+        supabase,
+        targetReservationId: reservationId,
+        fallback: () => {
+          let result: "auto_cancelled" | "cancel_requested" = "cancel_requested";
+
+          setState((current) => {
+            const reservation = current.reservations.find((item) => item.id === reservationId);
+            const slot = reservation ? current.slots.find((item) => item.id === reservation.slotId) : undefined;
+
+            if (!reservation || !slot) {
+              return current;
+            }
+
+            const canAutoCancel =
+              hoursUntil(slot.startAt) >= current.policies.cancellation.autoCancelHoursBeforeSession;
+
+            if (canAutoCancel) {
+              result = "auto_cancelled";
+
+              return {
+                ...current,
+                reservations: current.reservations.map((item) =>
+                  item.id === reservationId
+                    ? {
+                        ...item,
+                        status: "cancelled",
+                        cancelledAt: new Date().toISOString(),
+                        cancelReason: "회원 자동취소",
+                        deductOnCancel: false
+                      }
+                    : item
+                ),
+                slots: current.slots.map((item) =>
+                  item.id === slot.id ? { ...item, status: "open", heldUntil: undefined, reservationId: undefined } : item
+                )
+              };
+            }
+
+            return {
+              ...current,
+              reservations: current.reservations.map((item) =>
+                item.id === reservationId
+                  ? {
+                      ...item,
+                      status: "cancel_requested",
+                      cancelReason: "회원 취소요청",
+                      deductOnCancel: current.policies.cancellation.lateCancelDefaultDeduct
+                    }
+                  : item
+              )
+            };
+          });
+
+          return result;
+        }
+      });
+      setMessage("취소 요청을 처리했습니다.");
+    } catch {
+      setMessage("취소 요청 처리에 실패했습니다.");
+    }
+  }
+
+  async function resolveLateCancel(reservationId: string, deduct: boolean) {
+    try {
+      await resolveLateCancelAction({
+        supabase,
+        targetReservationId: reservationId,
+        shouldDeduct: deduct,
+        fallback: () => {
+          setState((current) => {
+            const reservation = current.reservations.find((item) => item.id === reservationId);
+            const pass = reservation ? current.passes.find((item) => item.id === reservation.passId) : undefined;
+
+            if (!reservation || !pass) {
+              return current;
+            }
+
+            return {
+              ...current,
+              reservations: current.reservations.map((item) =>
+                item.id === reservationId
+                  ? {
+                      ...item,
+                      status: "cancelled",
+                      cancelledAt: new Date().toISOString(),
+                      deductOnCancel: deduct
+                    }
+                  : item
+              ),
+              slots: current.slots.map((slot) =>
+                slot.id === reservation.slotId
+                  ? { ...slot, status: "open", heldUntil: undefined, reservationId: undefined }
+                  : slot
+              ),
+              passes: deduct
+                ? current.passes.map((item) =>
+                    item.id === pass.id
+                      ? { ...item, remainingSessions: Math.max(0, item.remainingSessions - 1) }
+                      : item
+                  )
+                : current.passes,
+              passEvents: deduct
+                ? [
+                    {
+                      id: makeId("event"),
+                      passId: pass.id,
+                      memberId: pass.memberId,
+                      reservationId,
+                      eventType: "late_cancel_deducted",
+                      deltaCount: -1,
+                      reason: "24시간 이내 취소 차감",
+                      actor: "admin",
+                      createdAt: new Date().toISOString()
+                    },
+                    ...current.passEvents
+                  ]
+                : current.passEvents
+            };
+          });
+        }
+      });
+      setMessage(deduct ? "취소 차감을 기록했습니다." : "미차감 예외로 처리했습니다.");
+    } catch {
+      setMessage("취소 차감 처리에 실패했습니다.");
+    }
   }
 
   function changePaymentStatus(passId: string, nextStatus: PaymentStatus) {
@@ -576,7 +690,7 @@ export function PtManagementApp() {
       </section>
 
       {mode === "admin" ? (
-        <section className={adminTab === "home" ? "workspace admin-home-workspace with-bottom-nav" : "workspace with-bottom-nav"}>
+        <section className="app-surface-flat with-bottom-nav">
             {adminTab === "home" && (
               <AdminHomeView
                 tasks={tasks}
@@ -622,14 +736,11 @@ export function PtManagementApp() {
               />
             )}
 
-            {adminTab === "summary" && <SummaryView summary={crmSummary} />}
-
             <nav className="bottom-tabs admin-bottom-tabs" aria-label="관리자 메뉴">
               <TabButton active={adminTab === "home"} onClick={() => setAdminTab("home")} icon={<Home size={18} />} label="홈" />
               <TabButton active={adminTab === "week"} onClick={() => setAdminTab("week")} icon={<CalendarDays size={18} />} label="주간" />
               <TabButton active={adminTab === "members"} onClick={() => setAdminTab("members")} icon={<Users size={18} />} label="회원" />
               <TabButton active={adminTab === "settings"} onClick={() => setAdminTab("settings")} icon={<Settings size={18} />} label="설정" />
-              <TabButton active={adminTab === "summary"} onClick={() => setAdminTab("summary")} icon={<ClipboardList size={18} />} label="CRM" />
             </nav>
         </section>
       ) : (
@@ -753,7 +864,7 @@ function ScheduleView({
   resolveLateCancel: (reservationId: string, deduct: boolean) => void;
 }) {
   return (
-    <section className="section-band week-screen">
+    <section className="week-screen">
       <div className="panel-heading">
         <div>
           <p className="eyebrow">주간 시간표</p>
@@ -793,59 +904,94 @@ function WeekSchedule({
   resolveLateCancel?: (reservationId: string, deduct: boolean) => void;
   summary?: boolean;
 }) {
+  const rows = buildWeekTimeRows(weekDays);
+  const firstSlotId = firstChronologicalSlot(weekDays)?.id;
+  const [selectedSlotId, setSelectedSlotId] = useState(firstSlotId);
+  const selectedSlot = state.slots.find((slot) => slot.id === selectedSlotId) ?? state.slots.find((slot) => slot.id === firstSlotId);
+  const selectedReservation = selectedSlot
+    ? state.reservations.find((reservation) => reservation.slotId === selectedSlot.id)
+    : undefined;
+
   if (summary) {
     return <WeekSummary weekDays={weekDays} state={state} memberName={memberName} />;
   }
 
   return (
-    <div className="week-grid">
-      {weekDays.map((group) => (
-        <section className="week-day" key={group.day}>
-          <div className="week-day-heading">
-            <strong>{weekdayLabel(group.day)}</strong>
-            <span>{monthDayLabel(group.day)}</span>
-          </div>
-          <div className="slot-list">
-            {group.slots.length === 0 && <div className="empty-slot">슬롯 없음</div>}
-            {group.slots.map((slot) => {
-              const reservation = state.reservations.find((item) => item.slotId === slot.id);
+    <>
+      <div className="week-matrix" role="grid" aria-label="7일 예약 현황">
+        <div className="week-matrix-header" role="row">
+          <span className="week-time-label">시간</span>
+          {weekDays.map((group) => (
+            <div className="week-day-heading" role="columnheader" key={group.day}>
+              <strong>{weekdayLabel(group.day)}</strong>
+              <span>{monthDayLabel(group.day)}</span>
+            </div>
+          ))}
+        </div>
+
+        {rows.map((row) => (
+          <div className="week-time-row" role="row" key={row.time}>
+            <span className="week-time-label">{row.time}</span>
+            {row.slots.map((slot, index) => {
+              const reservation = slot ? state.reservations.find((item) => item.slotId === slot.id) : undefined;
+              const status = reservation?.status ?? slot?.status ?? "empty";
+              const label = reservation ? memberName(reservation.memberId) : slot?.status === "blocked" ? "차단" : slot ? "가능" : "없음";
+
               return (
-                <article className={`slot-card ${slot.status}`} key={slot.id}>
-                  <div className="slot-main">
-                    <span className="slot-time">
-                      {timeLabel(slot.startAt)}
-                    </span>
-                    <StatusPill value={reservation?.status ?? slot.status} />
-                  </div>
-                  <p>{reservation ? memberName(reservation.memberId) : slot.status === "blocked" ? "운영 차단" : "예약 가능"}</p>
-                  {reservation?.status === "requested" && approveReservation && rejectReservation && (
-                    <div className="row-actions">
-                      <IconButton label="승인" onClick={() => approveReservation(reservation.id)} icon={<Check size={16} />} />
-                      <IconButton label="거절" onClick={() => rejectReservation(reservation.id)} icon={<X size={16} />} />
-                    </div>
-                  )}
-                  {reservation?.status === "confirmed" && completeSession && (
-                    <div className="row-actions">
-                      <IconButton label="완료" onClick={() => completeSession(reservation.id)} icon={<Check size={16} />} />
-                    </div>
-                  )}
-                  {reservation?.status === "cancel_requested" && resolveLateCancel && (
-                    <div className="row-actions">
-                      <button className="small-button danger" onClick={() => resolveLateCancel(reservation.id, true)}>
-                        차감
-                      </button>
-                      <button className="small-button" onClick={() => resolveLateCancel(reservation.id, false)}>
-                        미차감
-                      </button>
-                    </div>
-                  )}
-                </article>
+                <button
+                  className={`week-cell ${status} ${selectedSlot?.id === slot?.id ? "selected" : ""}`}
+                  type="button"
+                  role="gridcell"
+                  key={`${row.time}-${weekDays[index]?.day ?? index}`}
+                  onClick={() => slot && setSelectedSlotId(slot.id)}
+                  disabled={!slot}
+                  aria-label={`${weekDays[index] ? weekdayLabel(weekDays[index].day) : ""} ${row.time} ${label}`}
+                >
+                  <span className="week-cell-status">{shortStatusLabel(status)}</span>
+                  <span className="week-cell-detail">{label}</span>
+                </button>
               );
             })}
           </div>
-        </section>
-      ))}
-    </div>
+        ))}
+      </div>
+
+      <section className="week-selection-panel" aria-label="선택 슬롯 상세">
+        {selectedSlot ? (
+          <>
+            <div>
+              <p className="eyebrow">선택 슬롯</p>
+              <h3>{formatDateTime(selectedSlot.startAt)}</h3>
+              <p>{selectedReservation ? memberName(selectedReservation.memberId) : selectedSlot.status === "blocked" ? "운영 차단" : "예약 가능"}</p>
+            </div>
+            <StatusPill value={selectedReservation?.status ?? selectedSlot.status} />
+            {selectedReservation?.status === "requested" && approveReservation && rejectReservation && (
+              <div className="row-actions">
+                <IconButton label="승인" onClick={() => approveReservation(selectedReservation.id)} icon={<Check size={16} />} />
+                <IconButton label="거절" onClick={() => rejectReservation(selectedReservation.id)} icon={<X size={16} />} />
+              </div>
+            )}
+            {selectedReservation?.status === "confirmed" && completeSession && (
+              <div className="row-actions">
+                <IconButton label="완료" onClick={() => completeSession(selectedReservation.id)} icon={<Check size={16} />} />
+              </div>
+            )}
+            {selectedReservation?.status === "cancel_requested" && resolveLateCancel && (
+              <div className="row-actions">
+                <button className="small-button danger" onClick={() => resolveLateCancel(selectedReservation.id, true)}>
+                  차감
+                </button>
+                <button className="small-button" onClick={() => resolveLateCancel(selectedReservation.id, false)}>
+                  미차감
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="empty-state">선택할 슬롯이 없습니다.</div>
+        )}
+      </section>
+    </>
   );
 }
 
@@ -1044,133 +1190,330 @@ function SettingsView({
   updatePolicy: (path: string, value: number | boolean | string) => void;
   updateProduct: (productId: string, field: "price" | "defaultValidDays" | "active", value: number | boolean) => void;
 }) {
-  return (
-    <div className="settings-layout">
-      <section className="section-band">
-        <h3>PT 상품</h3>
-        <div className="product-table">
-          {state.policies.passProducts.map((product) => (
-            <div className="product-row" key={product.id}>
-              <strong>{product.name}</strong>
-              <label>
-                가격
-                <input
-                  type="number"
-                  value={product.price}
-                  onChange={(event) => updateProduct(product.id, "price", Number(event.target.value))}
-                />
-              </label>
-              <label>
-                유효일
-                <input
-                  type="number"
-                  value={product.defaultValidDays}
-                  onChange={(event) => updateProduct(product.id, "defaultValidDays", Number(event.target.value))}
-                />
-              </label>
-              <label className="switch-row">
-                <input
-                  type="checkbox"
-                  checked={product.active}
-                  onChange={(event) => updateProduct(product.id, "active", event.target.checked)}
-                />
-                활성
-              </label>
-            </div>
-          ))}
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>("root");
+  const [policySection, setPolicySection] = useState<PolicySection>(null);
+  const [selectedDatasets, setSelectedDatasets] = useState<CsvDatasetKey[]>([]);
+  const [includePersonalData, setIncludePersonalData] = useState(false);
+  const hasSelectedDatasets = selectedDatasets.length > 0;
+
+  function toggleDataset(dataset: CsvDatasetKey, checked: boolean) {
+    setSelectedDatasets((current) =>
+      checked ? [...current, dataset] : current.filter((item) => item !== dataset)
+    );
+  }
+
+  function handleDownloadCsv() {
+    downloadCsvExport(state, selectedDatasets, includePersonalData);
+  }
+
+  function openSection(section: SettingsSection) {
+    setSettingsSection(section);
+    setPolicySection(null);
+  }
+
+  function goToSettingsRoot() {
+    setSettingsSection("root");
+    setPolicySection(null);
+  }
+
+  function goToPoliciesRoot() {
+    setSettingsSection("policies");
+    setPolicySection(null);
+  }
+
+  if (settingsSection === "root") {
+    return (
+      <section className="section-band settings-menu">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">설정</p>
+            <h2>관리 메뉴</h2>
+          </div>
+          <Settings size={20} />
+        </div>
+        <div className="settings-menu-grid">
+          <SettingsMenuButton
+            title="PT 상품"
+            body="회차, 가격, 유효일, 활성 여부"
+            onClick={() => openSection("products")}
+          />
+          <SettingsMenuButton
+            title="운영 정책"
+            body="예약, 취소, 연장, 재등록 기준"
+            onClick={() => openSection("policies")}
+          />
+          <SettingsMenuButton
+            title="안내 문구"
+            body="예약, 결제, 재등록 복사용 문구"
+            onClick={() => openSection("templates")}
+          />
+          <SettingsMenuButton
+            title="CSV 내보내기"
+            body="회원, 예약, 결제, 정책 데이터 저장"
+            onClick={() => openSection("csv")}
+          />
         </div>
       </section>
+    );
+  }
 
-      <section className="policy-grid">
-        <PolicyInput label="공개 주차" value={state.policies.booking.publishWeeks} onChange={(value) => updatePolicy("booking.publishWeeks", value)} />
-        <PolicyInput label="요청 만료 시간" value={state.policies.booking.requestExpiryHours} onChange={(value) => updatePolicy("booking.requestExpiryHours", value)} />
-        <PolicyInput label="자동취소 기준" value={state.policies.cancellation.autoCancelHoursBeforeSession} onChange={(value) => updatePolicy("cancellation.autoCancelHoursBeforeSession", value)} />
-        <PolicyInput label="재등록 잔여횟수" value={state.policies.renewal.remainingSessionsThreshold} onChange={(value) => updatePolicy("renewal.remainingSessionsThreshold", value)} />
-        <PolicyInput label="재등록 만료일 기준" value={state.policies.renewal.daysBeforeExpiryThreshold} onChange={(value) => updatePolicy("renewal.daysBeforeExpiryThreshold", value)} />
-        <PolicyInput label="고정 예약 개수" value={state.policies.booking.fixedFutureBookingLimit} onChange={(value) => updatePolicy("booking.fixedFutureBookingLimit", value)} />
-        <label className="setting-card">
-          <span>예약 제한 방식</span>
-          <select
-            value={state.policies.booking.memberFutureBookingLimit}
-            onChange={(event) => updatePolicy("booking.memberFutureBookingLimit", event.target.value)}
-          >
-            <option value="remaining_sessions">잔여횟수 기준</option>
-            <option value="fixed_count">고정 개수</option>
-            <option value="unlimited">제한 없음</option>
-          </select>
-        </label>
-        <label className="setting-card">
-          <span>미납 예약 허용</span>
-          <input
-            type="checkbox"
-            checked={state.policies.booking.allowUnpaidBooking}
-            onChange={(event) => updatePolicy("booking.allowUnpaidBooking", event.target.checked)}
-          />
-        </label>
-        <label className="setting-card">
-          <span>24시간 이내 기본 차감</span>
-          <input
-            type="checkbox"
-            checked={state.policies.cancellation.lateCancelDefaultDeduct}
-            onChange={(event) => updatePolicy("cancellation.lateCancelDefaultDeduct", event.target.checked)}
-          />
-        </label>
-        <label className="setting-card">
-          <span>회원 연장요청 허용</span>
-          <input
-            type="checkbox"
-            checked={state.policies.extension.memberRequestEnabled}
-            onChange={(event) => updatePolicy("extension.memberRequestEnabled", event.target.checked)}
-          />
-        </label>
-        <label className="setting-card">
-          <span>회원 재등록 안내</span>
-          <input
-            type="checkbox"
-            checked={state.policies.renewal.showToMember}
-            onChange={(event) => updatePolicy("renewal.showToMember", event.target.checked)}
-          />
-        </label>
-      </section>
+  if (settingsSection === "products") {
+    return (
+      <div className="settings-layout">
+        <SettingsDetailHeader eyebrow="설정" title="PT 상품" onBack={goToSettingsRoot} />
+        <section className="section-band">
+          <h3>PT 상품</h3>
+          <div className="product-table">
+            {state.policies.passProducts.map((product) => (
+              <div className="product-row" key={product.id}>
+                <strong>{product.name}</strong>
+                <label>
+                  가격
+                  <input
+                    type="number"
+                    value={product.price}
+                    onChange={(event) => updateProduct(product.id, "price", Number(event.target.value))}
+                  />
+                </label>
+                <label>
+                  유효일
+                  <input
+                    type="number"
+                    value={product.defaultValidDays}
+                    onChange={(event) => updateProduct(product.id, "defaultValidDays", Number(event.target.value))}
+                  />
+                </label>
+                <label className="switch-row">
+                  <input
+                    type="checkbox"
+                    checked={product.active}
+                    onChange={(event) => updateProduct(product.id, "active", event.target.checked)}
+                  />
+                  활성
+                </label>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    );
+  }
 
-      <section className="section-band">
-        <h3>예외 사유와 안내 문구</h3>
-        <div className="template-grid">
-          <label>
-            취소 예외 사유
+  if (settingsSection === "policies" && policySection === null) {
+    return (
+      <div className="settings-layout">
+        <SettingsDetailHeader eyebrow="설정" title="운영 정책" onBack={goToSettingsRoot} />
+        <section className="section-band settings-menu">
+          <div className="settings-menu-grid">
+            <SettingsMenuButton
+              title="예약"
+              body="공개 범위, 요청 만료, 예약 제한"
+              marker="settings-policy-예약"
+              onClick={() => setPolicySection("booking")}
+            />
+            <SettingsMenuButton
+              title="취소"
+              body="자동취소 기준, 당일취소 차감"
+              marker="settings-policy-취소"
+              onClick={() => setPolicySection("cancellation")}
+            />
+            <SettingsMenuButton
+              title="연장"
+              body="회원 요청 허용, 기본 사유"
+              marker="settings-policy-연장"
+              onClick={() => setPolicySection("extension")}
+            />
+            <SettingsMenuButton
+              title="재등록"
+              body="잔여횟수, 만료일, 회원 노출"
+              marker="settings-policy-재등록"
+              onClick={() => setPolicySection("renewal")}
+            />
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  if (settingsSection === "policies" && policySection === "booking") {
+    return (
+      <div className="settings-layout">
+        <SettingsDetailHeader eyebrow="운영 정책" title="예약" onBack={goToPoliciesRoot} />
+        <section className="policy-grid">
+          <PolicyInput label="공개 주차" value={state.policies.booking.publishWeeks} onChange={(value) => updatePolicy("booking.publishWeeks", value)} />
+          <PolicyInput label="요청 만료 시간" value={state.policies.booking.requestExpiryHours} onChange={(value) => updatePolicy("booking.requestExpiryHours", value)} />
+          <PolicyInput label="고정 예약 개수" value={state.policies.booking.fixedFutureBookingLimit} onChange={(value) => updatePolicy("booking.fixedFutureBookingLimit", value)} />
+          <label className="setting-card">
+            <span>예약 제한 방식</span>
+            <select
+              value={state.policies.booking.memberFutureBookingLimit}
+              onChange={(event) => updatePolicy("booking.memberFutureBookingLimit", event.target.value)}
+            >
+              <option value="remaining_sessions">잔여횟수 기준</option>
+              <option value="fixed_count">고정 개수</option>
+              <option value="unlimited">제한 없음</option>
+            </select>
+          </label>
+          <label className="setting-card">
+            <span>미납 예약 허용</span>
+            <input
+              type="checkbox"
+              checked={state.policies.booking.allowUnpaidBooking}
+              onChange={(event) => updatePolicy("booking.allowUnpaidBooking", event.target.checked)}
+            />
+          </label>
+        </section>
+      </div>
+    );
+  }
+
+  if (settingsSection === "policies" && policySection === "cancellation") {
+    return (
+      <div className="settings-layout">
+        <SettingsDetailHeader eyebrow="운영 정책" title="취소" onBack={goToPoliciesRoot} />
+        <section className="policy-grid">
+          <PolicyInput label="자동취소 기준" value={state.policies.cancellation.autoCancelHoursBeforeSession} onChange={(value) => updatePolicy("cancellation.autoCancelHoursBeforeSession", value)} />
+          <label className="setting-card">
+            <span>24시간 이내 기본 차감</span>
+            <input
+              type="checkbox"
+              checked={state.policies.cancellation.lateCancelDefaultDeduct}
+              onChange={(event) => updatePolicy("cancellation.lateCancelDefaultDeduct", event.target.checked)}
+            />
+          </label>
+          <label className="setting-card">
+            <span>취소 예외 사유</span>
             <input
               value={state.policies.cancellation.exceptionReasons.join(", ")}
               onChange={(event) => updatePolicy("cancellation.exceptionReasons", event.target.value)}
             />
           </label>
-          <label>
-            연장 사유
+        </section>
+      </div>
+    );
+  }
+
+  if (settingsSection === "policies" && policySection === "extension") {
+    return (
+      <div className="settings-layout">
+        <SettingsDetailHeader eyebrow="운영 정책" title="연장" onBack={goToPoliciesRoot} />
+        <section className="policy-grid">
+          <label className="setting-card">
+            <span>회원 연장요청 허용</span>
+            <input
+              type="checkbox"
+              checked={state.policies.extension.memberRequestEnabled}
+              onChange={(event) => updatePolicy("extension.memberRequestEnabled", event.target.checked)}
+            />
+          </label>
+          <label className="setting-card">
+            <span>연장 사유</span>
             <input
               value={state.policies.extension.defaultReasons.join(", ")}
               onChange={(event) => updatePolicy("extension.defaultReasons", event.target.value)}
             />
           </label>
-          <label>
-            예약 확정 문구
-            <textarea
-              value={state.policies.copyTemplates.bookingApproved}
-              onChange={(event) => updatePolicy("copyTemplates.bookingApproved", event.target.value)}
+        </section>
+      </div>
+    );
+  }
+
+  if (settingsSection === "policies" && policySection === "renewal") {
+    return (
+      <div className="settings-layout">
+        <SettingsDetailHeader eyebrow="운영 정책" title="재등록" onBack={goToPoliciesRoot} />
+        <section className="policy-grid">
+          <PolicyInput label="재등록 잔여횟수" value={state.policies.renewal.remainingSessionsThreshold} onChange={(value) => updatePolicy("renewal.remainingSessionsThreshold", value)} />
+          <PolicyInput label="재등록 만료일 기준" value={state.policies.renewal.daysBeforeExpiryThreshold} onChange={(value) => updatePolicy("renewal.daysBeforeExpiryThreshold", value)} />
+          <label className="setting-card">
+            <span>회원 재등록 안내</span>
+            <input
+              type="checkbox"
+              checked={state.policies.renewal.showToMember}
+              onChange={(event) => updatePolicy("renewal.showToMember", event.target.checked)}
             />
           </label>
-          <label>
-            결제 요청 문구
-            <textarea
-              value={state.policies.copyTemplates.paymentRequested}
-              onChange={(event) => updatePolicy("copyTemplates.paymentRequested", event.target.value)}
+        </section>
+      </div>
+    );
+  }
+
+  if (settingsSection === "templates") {
+    return (
+      <div className="settings-layout">
+        <SettingsDetailHeader eyebrow="설정" title="안내 문구" onBack={goToSettingsRoot} />
+        <section className="section-band">
+          <div className="template-grid">
+            <label>
+              예약 확정 문구
+              <textarea
+                value={state.policies.copyTemplates.bookingApproved}
+                onChange={(event) => updatePolicy("copyTemplates.bookingApproved", event.target.value)}
+              />
+            </label>
+            <label>
+              결제 요청 문구
+              <textarea
+                value={state.policies.copyTemplates.paymentRequested}
+                onChange={(event) => updatePolicy("copyTemplates.paymentRequested", event.target.value)}
+              />
+            </label>
+            <label>
+              재등록 문구
+              <textarea
+                value={state.policies.copyTemplates.renewalNudge}
+                onChange={(event) => updatePolicy("copyTemplates.renewalNudge", event.target.value)}
+              />
+            </label>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="settings-layout">
+      <SettingsDetailHeader eyebrow="설정" title="CSV 내보내기" onBack={goToSettingsRoot} />
+      <section className="section-band">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">데이터 보존</p>
+            <h2>CSV 내보내기</h2>
+          </div>
+          <button
+            className="primary-button"
+            type="button"
+            disabled={!hasSelectedDatasets}
+            onClick={handleDownloadCsv}
+          >
+            <ClipboardList size={16} />
+            다운로드
+          </button>
+        </div>
+        <div className="csv-export-panel">
+          <div className="csv-option-grid" aria-label="CSV 내보내기 데이터 선택">
+            {csvDatasetOptions.map((option) => (
+              <label className="csv-option" key={option.key}>
+                <input
+                  type="checkbox"
+                  checked={selectedDatasets.includes(option.key)}
+                  onChange={(event) => toggleDataset(option.key, event.target.checked)}
+                />
+                <span>{option.label}</span>
+              </label>
+            ))}
+          </div>
+          <label className="csv-privacy-option">
+            <input
+              type="checkbox"
+              checked={includePersonalData}
+              onChange={(event) => setIncludePersonalData(event.target.checked)}
             />
+            <span>개인정보 포함</span>
           </label>
-          <label>
-            재등록 문구
-            <textarea
-              value={state.policies.copyTemplates.renewalNudge}
-              onChange={(event) => updatePolicy("copyTemplates.renewalNudge", event.target.value)}
-            />
-          </label>
+          <p className="settings-note">
+            선택한 항목은 한 파일로 저장됩니다. 개인정보 포함을 켜지 않으면 전화번호 필드는 제외됩니다.
+          </p>
         </div>
       </section>
     </div>
@@ -1186,24 +1529,47 @@ function PolicyInput({ label, value, onChange }: { label: string; value: number;
   );
 }
 
-function SummaryView({ summary }: { summary: string }) {
+function SettingsDetailHeader({
+  eyebrow,
+  title,
+  onBack
+}: {
+  eyebrow: string;
+  title: string;
+  onBack: () => void;
+}) {
   return (
-    <section className="section-band">
-      <div className="panel-heading">
-        <div>
-          <p className="eyebrow">비타민CRM</p>
-          <h2>복사용 요약</h2>
-        </div>
-        <button
-          className="primary-button"
-          onClick={() => navigator.clipboard?.writeText(summary)}
-        >
-          <ClipboardList size={16} />
-          복사
-        </button>
+    <section className="settings-detail-header">
+      <button className="small-button" type="button" onClick={onBack}>
+        뒤로
+      </button>
+      <div>
+        <p className="eyebrow">{eyebrow}</p>
+        <h2>{title}</h2>
       </div>
-      <textarea className="summary-box" readOnly value={summary} />
     </section>
+  );
+}
+
+function SettingsMenuButton({
+  title,
+  body,
+  marker,
+  onClick
+}: {
+  title: string;
+  body: string;
+  marker?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button className="settings-menu-button" type="button" data-marker={marker} onClick={onClick}>
+      <span>
+        <strong>{title}</strong>
+        <small>{body}</small>
+      </span>
+      <b aria-hidden="true">›</b>
+    </button>
   );
 }
 
@@ -1241,7 +1607,7 @@ function MemberView({
   const approvedLink = true;
 
   return (
-    <section className="member-app with-bottom-nav">
+    <section className="member-app app-surface-flat with-bottom-nav">
       <div className="toolbar">
         <select value={memberSessionId} onChange={(event) => setMemberSessionId(event.target.value)} aria-label="회원 데모 계정">
           {state.members.map((item) => (
@@ -1366,9 +1732,19 @@ function MemberBookingView({
   requestBooking: (slotId: string) => void;
 }) {
   const visibleUntil = addDays(new Date(), state.policies.booking.publishWeeks * 7).getTime();
+  const visibleWeekDays = weekDays.map((group) => ({
+    ...group,
+    slots: group.slots.filter((slot) => new Date(slot.startAt).getTime() <= visibleUntil)
+  }));
+  const rows = buildWeekTimeRows(visibleWeekDays);
+  const firstSlotId = firstChronologicalSlot(visibleWeekDays)?.id;
+  const [selectedSlotId, setSelectedSlotId] = useState(firstSlotId);
+  const selectedSlot = visibleWeekDays
+    .flatMap((group) => group.slots)
+    .find((slot) => slot.id === selectedSlotId) ?? visibleWeekDays.flatMap((group) => group.slots).find((slot) => slot.id === firstSlotId);
 
   return (
-    <section className="section-band week-screen">
+    <section className="week-screen">
       <div className="panel-heading">
         <div>
           <p className="eyebrow">예약</p>
@@ -1376,34 +1752,67 @@ function MemberBookingView({
         </div>
         <CalendarDays size={20} />
       </div>
-      <div className="week-grid member-week-grid">
-        {weekDays.map((group) => (
-          <section className="week-day" key={group.day}>
-            <div className="week-day-heading">
+
+      <div className="week-matrix member-week-matrix" role="grid" aria-label="이번 주 가능 시간">
+        <div className="week-matrix-header" role="row">
+          <span className="week-time-label">시간</span>
+          {visibleWeekDays.map((group) => (
+            <div className="week-day-heading" role="columnheader" key={group.day}>
               <strong>{weekdayLabel(group.day)}</strong>
               <span>{monthDayLabel(group.day)}</span>
             </div>
-            <div className="slot-list">
-              {group.slots.filter((slot) => new Date(slot.startAt).getTime() <= visibleUntil).length === 0 && (
-                <div className="empty-slot">가능 시간 없음</div>
-              )}
-              {group.slots
-                .filter((slot) => new Date(slot.startAt).getTime() <= visibleUntil)
-                .map((slot) => (
-                  <button
-                    className={`member-slot-card ${slot.status}`}
-                    key={slot.id}
-                    onClick={() => slot.status === "open" && requestBooking(slot.id)}
-                    disabled={slot.status !== "open"}
-                  >
-                    <span>{timeLabel(slot.startAt)}</span>
-                    <StatusPill value={slot.status} />
-                  </button>
-                ))}
-            </div>
-          </section>
+          ))}
+        </div>
+
+        {rows.map((row) => (
+          <div className="week-time-row" role="row" key={row.time}>
+            <span className="week-time-label">{row.time}</span>
+            {row.slots.map((slot, index) => {
+              const status = slot?.status ?? "empty";
+              const label = slot?.status === "blocked" ? "차단" : slot ? statusLabels[slot.status] : "없음";
+
+              return (
+                <button
+                  className={`week-cell ${status} ${selectedSlot?.id === slot?.id ? "selected" : ""}`}
+                  type="button"
+                  role="gridcell"
+                  key={`${row.time}-${visibleWeekDays[index]?.day ?? index}`}
+                  onClick={() => slot && setSelectedSlotId(slot.id)}
+                  disabled={!slot}
+                  aria-label={`${visibleWeekDays[index] ? weekdayLabel(visibleWeekDays[index].day) : ""} ${row.time} ${label}`}
+                >
+                  <span className="week-cell-status">{shortStatusLabel(status)}</span>
+                  <span className="week-cell-detail">{label}</span>
+                </button>
+              );
+            })}
+          </div>
         ))}
       </div>
+
+      <section className="week-selection-panel" aria-label="선택 예약 상세">
+        {selectedSlot ? (
+          <>
+            <div>
+              <p className="eyebrow">선택 시간</p>
+              <h3>{formatDateTime(selectedSlot.startAt)}</h3>
+              <p>{selectedSlot.status === "open" ? "예약 요청 가능" : statusLabels[selectedSlot.status]}</p>
+            </div>
+            <StatusPill value={selectedSlot.status} />
+            <div className="row-actions">
+              <button
+                className="primary-button"
+                onClick={() => requestBooking(selectedSlot.id)}
+                disabled={selectedSlot.status !== "open"}
+              >
+                예약 요청
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="empty-state">예약 가능한 시간이 없습니다.</div>
+        )}
+      </section>
     </section>
   );
 }
@@ -1597,6 +2006,40 @@ function buildSevenDayWeek(slots: AvailabilitySlot[]) {
   return Array.from(groups.entries()).map(([day, daySlots]) => ({ day, slots: daySlots }));
 }
 
+function buildWeekTimeRows(weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>) {
+  const times = Array.from(
+    new Set(weekDays.flatMap((group) => group.slots.map((slot) => timeLabel(slot.startAt))))
+  ).sort();
+
+  return times.map((time) => ({
+    time,
+    slots: weekDays.map((group) => group.slots.find((slot) => timeLabel(slot.startAt) === time) ?? null)
+  }));
+}
+
+function firstChronologicalSlot(weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>) {
+  return [...weekDays.flatMap((group) => group.slots)].sort((a, b) => a.startAt.localeCompare(b.startAt))[0];
+}
+
+function shortStatusLabel(value: string) {
+  if (value === "open") {
+    return "가";
+  }
+  if (value === "requested" || value === "held") {
+    return "요";
+  }
+  if (value === "confirmed" || value === "completed") {
+    return "확";
+  }
+  if (value === "blocked") {
+    return "차";
+  }
+  if (value === "cancel_requested") {
+    return "취";
+  }
+  return "-";
+}
+
 function weekdayLabel(day: string) {
   return dayDate(day).toLocaleDateString("ko-KR", { weekday: "short", timeZone: "UTC" });
 }
@@ -1617,31 +2060,125 @@ function dayDate(day: string) {
   return new Date(`${day}T12:00:00Z`);
 }
 
-function buildCrmSummary(state: AppState) {
-  const completed = state.reservations.filter((reservation) => reservation.status === "completed");
-  const cancelled = state.reservations.filter((reservation) => reservation.status === "cancelled");
-  const payments = state.payments.filter((payment) => payment.status === "paid" || payment.status === "refunded");
+function buildCsvExport(state: AppState, datasets: CsvDatasetKey[], includePersonalData: boolean) {
+  const exportedAt = new Date().toISOString();
+  const rows = [["exported_at", "dataset", "record_id", "field", "value"]];
 
-  const lines = [
-    `[강동무에타이장 PT 요약] ${new Date().toLocaleDateString("ko-KR")}`,
-    "",
-    "수업완료",
-    ...completed.map((reservation) => `- ${memberById(state, reservation.memberId)} / 1회 차감`),
-    completed.length === 0 ? "- 없음" : "",
-    "",
-    "취소/예외",
-    ...cancelled.map((reservation) => {
-      const label = reservation.deductOnCancel ? "차감" : "미차감";
-      return `- ${memberById(state, reservation.memberId)} / ${label} / ${reservation.cancelReason ?? "사유 없음"}`;
-    }),
-    cancelled.length === 0 ? "- 없음" : "",
-    "",
-    "결제/환불",
-    ...payments.map((payment) => `- ${memberById(state, payment.memberId)} / ${statusLabels[payment.status]} / ${formatWon(payment.amount)}`),
-    payments.length === 0 ? "- 없음" : ""
-  ];
+  for (const dataset of datasets) {
+    for (const record of recordsForCsvDataset(state, dataset)) {
+      for (const [field, value] of Object.entries(record.value)) {
+        if (!includePersonalData && isPersonalCsvField(dataset, field)) {
+          continue;
+        }
+        rows.push([exportedAt, record.dataset, record.id, field, stringifyCsvValue(value)]);
+      }
+    }
+  }
 
-  return lines.filter((line, index, array) => !(line === "" && array[index - 1] === "")).join("\n");
+  return rows.map((row) => row.map(escapeCsvCell).join(",")).join("\n");
+}
+
+function downloadCsvExport(state: AppState, datasets: CsvDatasetKey[], includePersonalData: boolean) {
+  if (datasets.length === 0 || typeof document === "undefined") {
+    return;
+  }
+
+  const csv = buildCsvExport(state, datasets, includePersonalData);
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `gangdong-pt-export-${localDateStamp()}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function recordsForCsvDataset(state: AppState, dataset: CsvDatasetKey) {
+  if (dataset === "passProducts") {
+    return state.policies.passProducts.map((product) => ({
+      dataset: "pt_pass_products",
+      id: product.id,
+      value: product as Record<string, unknown>
+    }));
+  }
+
+  if (dataset === "policies") {
+    const { passProducts, ...policies } = state.policies;
+    return [
+      {
+        dataset: "policy_settings",
+        id: "current",
+        value: policies as Record<string, unknown>
+      }
+    ];
+  }
+
+  const values: Record<Exclude<CsvDatasetKey, "passProducts" | "policies">, Array<Record<string, unknown>>> = {
+    members: state.members,
+    memberLinkRequests: state.memberLinkRequests,
+    passes: state.passes,
+    passEvents: state.passEvents,
+    slots: state.slots,
+    reservations: state.reservations,
+    payments: state.payments,
+    paymentEvents: state.paymentEvents,
+    extensionRequests: state.extensionRequests
+  };
+
+  return values[dataset].map((item) => ({
+    dataset: csvDatasetName(dataset),
+    id: String(item.id ?? "unknown"),
+    value: item
+  }));
+}
+
+function csvDatasetName(dataset: CsvDatasetKey) {
+  const names: Record<CsvDatasetKey, string> = {
+    members: "members",
+    memberLinkRequests: "member_link_requests",
+    passes: "pt_passes",
+    passEvents: "pass_events",
+    slots: "availability_slots",
+    reservations: "reservations",
+    payments: "payments",
+    paymentEvents: "payment_events",
+    extensionRequests: "extension_requests",
+    passProducts: "pt_pass_products",
+    policies: "policy_settings"
+  };
+
+  return names[dataset];
+}
+
+function isPersonalCsvField(dataset: CsvDatasetKey, field: string) {
+  return (
+    (dataset === "members" && (field === "phone" || field === "normalizedPhone")) ||
+    (dataset === "memberLinkRequests" && (field === "inputPhone" || field === "normalizedPhone"))
+  );
+}
+
+function stringifyCsvValue(value: unknown) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function escapeCsvCell(value: string) {
+  return /[",\n\r]/.test(value) ? `"${value.replaceAll("\"", "\"\"")}"` : value;
+}
+
+function localDateStamp() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function shouldRenew(pass: PtPass, state: AppState) {
