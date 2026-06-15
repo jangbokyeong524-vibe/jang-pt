@@ -2,7 +2,7 @@
 
 updated: 2026-06-15
 mode: codex-resume-index
-phase: apple-ios-ui-implemented
+phase: week-bottom-tabs-ia-implemented
 
 ## Rules
 
@@ -27,6 +27,10 @@ phase: apple-ios-ui-implemented
 - Kakao/Google Auth, RLS, and DB transactions are not wired to the UI.
 - Mobile-first design is part of the baseline.
 - Apple iOS operations UI has been applied to the local demo screen.
+- Admin/member screens now use bottom tabs in the local demo UI.
+- Admin home prioritizes processing tasks, with a compact seven-day weekly summary below.
+- Admin and member schedule views use a seven-day column layout so one week is visible at once.
+- The top admin/member switch remains only as a development/demo review convenience until Supabase Auth role routing replaces it.
 - UI direction and implementation plan live in `DESIGN.md`, `docs/superpowers/specs/2026-06-15-apple-ios-operations-ui-design.md`, and `docs/superpowers/plans/2026-06-15-apple-ios-operations-ui.md`.
 - Git repository is initialized.
 - Git is installed at `C:\Program Files\Git\cmd\git.exe`, but current PowerShell PATH may not include it.
@@ -34,8 +38,9 @@ phase: apple-ios-ui-implemented
 ## Next Actions
 
 1. Start Supabase Auth callback design.
-2. Wire Supabase client/auth state into the UI.
-3. Design reservation request/cancel RPC or server actions.
+2. Replace the demo admin/member switch with account role routing.
+3. Wire Supabase client/auth state into the UI.
+4. Design reservation request/cancel RPC or server actions.
 
 ## Blockers
 
@@ -44,6 +49,7 @@ phase: apple-ios-ui-implemented
 
 ## Last Verified
 
+- 2026-06-15: Week bottom tabs implementation verified with `npm run build` and production `next start -p 3002` HTTP checks.
 - 2026-06-15: `npm run build` passed.
 - 2026-06-15: Apple UI pass verified with production `next start -p 3002` Playwright mobile/desktop screenshots and admin-to-member interaction check.
 - 2026-06-15: `timeout 8s ./Start.sh` reached Next.js `Ready` before timeout.

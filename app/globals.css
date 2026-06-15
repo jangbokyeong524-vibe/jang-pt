@@ -68,14 +68,14 @@ textarea:focus-visible {
   width: min(1480px, 100%);
   margin: 0 auto;
   padding: 12px;
-  padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
 
 .topbar,
 .status-line,
 .panel-heading,
 .toolbar,
-.tabs,
+.bottom-tabs,
 .slot-main,
 .row-actions,
 .table-row,
@@ -205,6 +205,12 @@ h3 {
   gap: 12px;
 }
 
+.admin-home {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
 .task-panel,
 .workspace,
 .detail-panel,
@@ -290,26 +296,53 @@ h3 {
   padding: 10px;
 }
 
-.tabs {
-  gap: 8px;
-  flex-wrap: nowrap;
-  margin-bottom: 14px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: thin;
+.with-bottom-nav {
+  position: relative;
+}
+
+.bottom-tabs {
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  z-index: 30;
+  display: grid;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid rgba(224, 224, 224, 0.86);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(18px);
+}
+
+.admin-bottom-tabs {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.member-bottom-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .tab {
-  flex: 0 0 auto;
-  min-height: 44px;
-  padding: 0 13px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0 6px;
+  flex-direction: column;
   border-color: var(--line);
-  border-radius: var(--control-radius);
+  border-radius: 18px;
   background: var(--surface);
   color: var(--muted);
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.tab span {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tab:not(.active):hover,
@@ -321,21 +354,41 @@ h3 {
   background: var(--info-bg);
 }
 
-.schedule-grid {
+.week-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
+  grid-template-columns: repeat(7, minmax(82px, 1fr));
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
 }
 
-.day-column {
+.week-day {
   min-width: 0;
 }
 
-.day-column h3 {
-  min-height: 32px;
+.week-day-heading {
+  min-height: 48px;
   display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin-bottom: 6px;
+  border: 1px solid var(--line-soft);
+  border-radius: 13px;
+  background: var(--surface-strong);
+  text-align: center;
+}
+
+.week-day-heading strong {
+  font-size: 13px;
+}
+
+.week-day-heading span {
   color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .slot-list {
@@ -344,14 +397,23 @@ h3 {
 }
 
 .slot-card {
-  min-height: 98px;
+  min-height: 92px;
   display: grid;
   align-content: start;
   gap: 8px;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: var(--row-radius);
   background: var(--surface);
+}
+
+.week-grid.compact .slot-card {
+  min-height: 70px;
+  padding: 8px;
+}
+
+.week-grid.compact .slot-card p {
+  display: none;
 }
 
 .slot-card.held {
@@ -375,7 +437,7 @@ h3 {
 }
 
 .slot-time {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 800;
   letter-spacing: 0;
 }
@@ -384,6 +446,19 @@ h3 {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.35;
+}
+
+.empty-slot {
+  min-height: 54px;
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  border: 1px dashed var(--line);
+  border-radius: var(--row-radius);
+  color: var(--muted);
+  background: var(--surface-strong);
+  font-size: 12px;
+  text-align: center;
 }
 
 .row-actions {
@@ -695,6 +770,34 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.member-slot-card {
+  min-height: 62px;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 7px;
+  width: 100%;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--row-radius);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+}
+
+.member-slot-card.open {
+  border-color: rgba(0, 102, 204, 0.22);
+  background: var(--info-bg);
+}
+
+.member-slot-card:disabled {
+  opacity: 0.72;
+}
+
+.table-row.single {
+  margin-top: 10px;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -761,6 +864,7 @@ textarea {
 @media (min-width: 721px) {
   .app-shell {
     padding: 20px;
+    padding-bottom: 112px;
   }
 
   .topbar {
@@ -785,7 +889,6 @@ textarea {
     grid-template-columns: repeat(2, minmax(108px, 1fr));
   }
 
-  .schedule-grid,
   .available-grid,
   .metric-grid,
   .policy-grid,
@@ -810,26 +913,40 @@ textarea {
 @media (min-width: 1101px) {
   .app-shell {
     padding: 24px;
+    padding-bottom: 24px;
   }
 
-  .admin-layout {
-    grid-template-columns: 320px minmax(0, 1fr);
-    gap: 18px;
+  .bottom-tabs {
+    position: static;
+    margin-top: 14px;
+    box-shadow: var(--shadow);
+    backdrop-filter: none;
+  }
+
+  .tab {
+    min-height: 48px;
+    flex-direction: row;
+    font-size: 13px;
+  }
+
+  .admin-home {
+    grid-template-columns: 360px minmax(0, 1fr);
+    align-items: start;
+    gap: 14px;
   }
 
   .task-panel {
     padding: 16px;
-    position: sticky;
-    top: 16px;
   }
 
   .workspace {
     padding: 14px;
   }
 
-  .schedule-grid {
-    grid-template-columns: repeat(4, minmax(180px, 1fr));
-    gap: 12px;
+  .week-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    overflow-x: visible;
+    gap: 10px;
   }
 
   .split-layout {

@@ -6,6 +6,8 @@ import {
   CalendarDays,
   Check,
   ClipboardList,
+  History,
+  Home,
   LogIn,
   Settings,
   UserCheck,
@@ -19,6 +21,8 @@ import type {
   AppState,
   AvailabilitySlot,
   Member,
+  PassEvent,
+  Payment,
   PaymentStatus,
   PtPass,
   Reservation
@@ -26,7 +30,6 @@ import type {
 import {
   addDays,
   addHours,
-  formatDate,
   formatDateTime,
   formatWon,
   hoursUntil,
@@ -34,7 +37,8 @@ import {
   toInputDate
 } from "@/lib/utils";
 
-type AdminTab = "schedule" | "members" | "settings" | "summary";
+type AdminTab = "home" | "week" | "members" | "settings" | "summary";
+type MemberTab = "home" | "booking" | "history";
 
 const statusLabels: Record<string, string> = {
   open: "가능",
@@ -63,7 +67,8 @@ const paymentOrder: PaymentStatus[] = [
 export function PtManagementApp() {
   const [state, setState] = useState<AppState>(initialState);
   const [mode, setMode] = useState<"admin" | "member">("admin");
-  const [adminTab, setAdminTab] = useState<AdminTab>("schedule");
+  const [adminTab, setAdminTab] = useState<AdminTab>("home");
+  const [memberTab, setMemberTab] = useState<MemberTab>("home");
   const [selectedMemberId, setSelectedMemberId] = useState("member_1");
   const [memberSessionId, setMemberSessionId] = useState("member_3");
   const [message, setMessage] = useState("데모 데이터가 로드되었습니다.");
@@ -72,7 +77,7 @@ export function PtManagementApp() {
   const loggedInMember = state.members.find((member) => member.id === memberSessionId) ?? state.members[0];
 
   const tasks = useMemo(() => buildTasks(state), [state]);
-  const groupedSlots = useMemo(() => groupSlotsByDay(state.slots), [state.slots]);
+  const weekDays = useMemo(() => buildSevenDayWeek(state.slots), [state.slots]);
   const crmSummary = useMemo(() => buildCrmSummary(state), [state]);
 
   function activePassFor(memberId: string) {
@@ -571,39 +576,19 @@ export function PtManagementApp() {
       </section>
 
       {mode === "admin" ? (
-        <section className="admin-layout">
-          <aside className="task-panel" aria-label="처리 필요">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">오늘 처리</p>
-                <h2>처리 필요 {tasks.length}</h2>
-              </div>
-              <AlertTriangle size={20} />
-            </div>
-            <div className="task-list">
-              {tasks.map((task) => (
-                <div className={`task-item ${task.tone}`} key={task.id}>
-                  <div>
-                    <strong>{task.title}</strong>
-                    <p>{task.body}</p>
-                  </div>
-                  <span>{task.badge}</span>
-                </div>
-              ))}
-            </div>
-          </aside>
+        <section className="workspace with-bottom-nav">
+            {adminTab === "home" && (
+              <AdminHomeView
+                tasks={tasks}
+                weekDays={weekDays}
+                state={state}
+                memberName={memberName}
+              />
+            )}
 
-          <section className="workspace">
-            <nav className="tabs" aria-label="관리자 메뉴">
-              <TabButton active={adminTab === "schedule"} onClick={() => setAdminTab("schedule")} icon={<CalendarDays size={16} />} label="주간 시간표" />
-              <TabButton active={adminTab === "members"} onClick={() => setAdminTab("members")} icon={<Users size={16} />} label="회원/PT권" />
-              <TabButton active={adminTab === "settings"} onClick={() => setAdminTab("settings")} icon={<Settings size={16} />} label="운영 설정" />
-              <TabButton active={adminTab === "summary"} onClick={() => setAdminTab("summary")} icon={<ClipboardList size={16} />} label="CRM 요약" />
-            </nav>
-
-            {adminTab === "schedule" && (
+            {adminTab === "week" && (
               <ScheduleView
-                groupedSlots={groupedSlots}
+                weekDays={weekDays}
                 state={state}
                 memberName={memberName}
                 approveReservation={approveReservation}
@@ -638,16 +623,28 @@ export function PtManagementApp() {
             )}
 
             {adminTab === "summary" && <SummaryView summary={crmSummary} />}
-          </section>
+
+            <nav className="bottom-tabs admin-bottom-tabs" aria-label="관리자 메뉴">
+              <TabButton active={adminTab === "home"} onClick={() => setAdminTab("home")} icon={<Home size={18} />} label="홈" />
+              <TabButton active={adminTab === "week"} onClick={() => setAdminTab("week")} icon={<CalendarDays size={18} />} label="주간" />
+              <TabButton active={adminTab === "members"} onClick={() => setAdminTab("members")} icon={<Users size={18} />} label="회원" />
+              <TabButton active={adminTab === "settings"} onClick={() => setAdminTab("settings")} icon={<Settings size={18} />} label="설정" />
+              <TabButton active={adminTab === "summary"} onClick={() => setAdminTab("summary")} icon={<ClipboardList size={18} />} label="CRM" />
+            </nav>
         </section>
       ) : (
         <MemberView
           state={state}
           member={loggedInMember}
+          memberTab={memberTab}
+          setMemberTab={setMemberTab}
           memberSessionId={memberSessionId}
           setMemberSessionId={setMemberSessionId}
           activePass={activePassFor(loggedInMember.id)}
           reservations={reservationsFor(loggedInMember.id)}
+          passEvents={state.passEvents.filter((event) => event.memberId === loggedInMember.id)}
+          payments={state.payments.filter((payment) => payment.memberId === loggedInMember.id)}
+          weekDays={weekDays}
           requestBooking={requestBooking}
           requestCancel={requestCancel}
           slotFor={slotFor}
@@ -671,13 +668,67 @@ function TabButton({
   return (
     <button className={active ? "tab active" : "tab"} onClick={onClick}>
       {icon}
-      {label}
+      <span>{label}</span>
     </button>
   );
 }
 
+function AdminHomeView({
+  tasks,
+  weekDays,
+  state,
+  memberName
+}: {
+  tasks: Array<{ id: string; title: string; body: string; badge: string; tone: string }>;
+  weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>;
+  state: AppState;
+  memberName: (memberId: string) => string;
+}) {
+  return (
+    <div className="admin-home">
+      <section className="task-panel" aria-label="처리 필요">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">오늘 처리</p>
+            <h2>처리 필요 {tasks.length}</h2>
+          </div>
+          <AlertTriangle size={20} />
+        </div>
+        <div className="task-list">
+          {tasks.map((task) => (
+            <div className={`task-item ${task.tone}`} key={task.id}>
+              <div>
+                <strong>{task.title}</strong>
+                <p>{task.body}</p>
+              </div>
+              <span>{task.badge}</span>
+            </div>
+          ))}
+          {tasks.length === 0 && <div className="empty-state">오늘 처리할 항목이 없습니다.</div>}
+        </div>
+      </section>
+
+      <section className="section-band">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">이번 주</p>
+            <h2>주간 요약</h2>
+          </div>
+          <CalendarDays size={20} />
+        </div>
+        <WeekSchedule
+          weekDays={weekDays}
+          state={state}
+          memberName={memberName}
+          compact
+        />
+      </section>
+    </div>
+  );
+}
+
 function ScheduleView({
-  groupedSlots,
+  weekDays,
   state,
   memberName,
   approveReservation,
@@ -685,7 +736,7 @@ function ScheduleView({
   completeSession,
   resolveLateCancel
 }: {
-  groupedSlots: Array<{ day: string; slots: AvailabilitySlot[] }>;
+  weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>;
   state: AppState;
   memberName: (memberId: string) => string;
   approveReservation: (reservationId: string) => void;
@@ -694,38 +745,79 @@ function ScheduleView({
   resolveLateCancel: (reservationId: string, deduct: boolean) => void;
 }) {
   return (
-    <div className="schedule-grid">
-      {groupedSlots.map((group) => (
-        <section className="day-column" key={group.day}>
-          <h3>{formatDate(group.day)}</h3>
+    <section className="section-band week-screen">
+      <div className="panel-heading">
+        <div>
+          <p className="eyebrow">주간 시간표</p>
+          <h2>7일 예약 현황</h2>
+        </div>
+        <CalendarDays size={20} />
+      </div>
+      <WeekSchedule
+        weekDays={weekDays}
+        state={state}
+        memberName={memberName}
+        approveReservation={approveReservation}
+        rejectReservation={rejectReservation}
+        completeSession={completeSession}
+        resolveLateCancel={resolveLateCancel}
+      />
+    </section>
+  );
+}
+
+function WeekSchedule({
+  weekDays,
+  state,
+  memberName,
+  approveReservation,
+  rejectReservation,
+  completeSession,
+  resolveLateCancel,
+  compact = false
+}: {
+  weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>;
+  state: AppState;
+  memberName: (memberId: string) => string;
+  approveReservation?: (reservationId: string) => void;
+  rejectReservation?: (reservationId: string) => void;
+  completeSession?: (reservationId: string) => void;
+  resolveLateCancel?: (reservationId: string, deduct: boolean) => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className={compact ? "week-grid compact" : "week-grid"}>
+      {weekDays.map((group) => (
+        <section className="week-day" key={group.day}>
+          <div className="week-day-heading">
+            <strong>{weekdayLabel(group.day)}</strong>
+            <span>{monthDayLabel(group.day)}</span>
+          </div>
           <div className="slot-list">
+            {group.slots.length === 0 && <div className="empty-slot">슬롯 없음</div>}
             {group.slots.map((slot) => {
               const reservation = state.reservations.find((item) => item.slotId === slot.id);
               return (
                 <article className={`slot-card ${slot.status}`} key={slot.id}>
                   <div className="slot-main">
                     <span className="slot-time">
-                      {new Date(slot.startAt).toLocaleTimeString("ko-KR", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false
-                      })}
+                      {timeLabel(slot.startAt)}
                     </span>
                     <StatusPill value={reservation?.status ?? slot.status} />
                   </div>
                   <p>{reservation ? memberName(reservation.memberId) : slot.status === "blocked" ? "운영 차단" : "예약 가능"}</p>
-                  {reservation?.status === "requested" && (
+                  {!compact && reservation?.status === "requested" && approveReservation && rejectReservation && (
                     <div className="row-actions">
                       <IconButton label="승인" onClick={() => approveReservation(reservation.id)} icon={<Check size={16} />} />
                       <IconButton label="거절" onClick={() => rejectReservation(reservation.id)} icon={<X size={16} />} />
                     </div>
                   )}
-                  {reservation?.status === "confirmed" && (
+                  {!compact && reservation?.status === "confirmed" && completeSession && (
                     <div className="row-actions">
                       <IconButton label="완료" onClick={() => completeSession(reservation.id)} icon={<Check size={16} />} />
                     </div>
                   )}
-                  {reservation?.status === "cancel_requested" && (
+                  {!compact && reservation?.status === "cancel_requested" && resolveLateCancel && (
                     <div className="row-actions">
                       <button className="small-button danger" onClick={() => resolveLateCancel(reservation.id, true)}>
                         차감
@@ -1064,31 +1156,38 @@ function SummaryView({ summary }: { summary: string }) {
 function MemberView({
   state,
   member,
+  memberTab,
+  setMemberTab,
   memberSessionId,
   setMemberSessionId,
   activePass,
   reservations,
+  passEvents,
+  payments,
+  weekDays,
   requestBooking,
   requestCancel,
   slotFor
 }: {
   state: AppState;
   member: Member;
+  memberTab: MemberTab;
+  setMemberTab: (tab: MemberTab) => void;
   memberSessionId: string;
   setMemberSessionId: (id: string) => void;
   activePass?: PtPass;
   reservations: Reservation[];
+  passEvents: PassEvent[];
+  payments: Payment[];
+  weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>;
   requestBooking: (slotId: string) => void;
   requestCancel: (reservationId: string) => void;
   slotFor: (slotId: string) => AvailabilitySlot | undefined;
 }) {
-  const openSlots = state.slots.filter((slot) => slot.status === "open");
-  const visibleUntil = addDays(new Date(), state.policies.booking.publishWeeks * 7).getTime();
-  const visibleOpenSlots = openSlots.filter((slot) => new Date(slot.startAt).getTime() <= visibleUntil);
   const approvedLink = true;
 
   return (
-    <section className="member-app">
+    <section className="member-app with-bottom-nav">
       <div className="toolbar">
         <select value={memberSessionId} onChange={(event) => setMemberSessionId(event.target.value)} aria-label="회원 데모 계정">
           {state.members.map((item) => (
@@ -1100,62 +1199,240 @@ function MemberView({
         <StatusPill value={approvedLink ? "approved" : "pending"} label={approvedLink ? "승인됨" : "승인대기"} />
       </div>
 
-      <div className="member-dashboard">
-        <section className="section-band">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">내 PT</p>
-              <h2>{member.name}</h2>
-            </div>
-            <UserCheck size={20} />
-          </div>
-          {activePass ? (
-            <div className="metric-grid">
-              <Metric label="잔여" value={`${activePass.remainingSessions}회`} />
-              <Metric label="만료" value={toInputDate(activePass.expiresOn)} />
-              <Metric label="결제" value={statusLabels[activePass.paymentStatus]} tone={activePass.paymentStatus === "paid" ? "good" : "warn"} />
-              <Metric label="재등록" value={shouldRenew(activePass, state) ? "상담 필요" : "정상"} tone={shouldRenew(activePass, state) ? "warn" : "good"} />
-            </div>
-          ) : (
-            <div className="empty-state">활성 PT권 없음</div>
-          )}
-        </section>
+      {memberTab === "home" && (
+        <MemberHomeView
+          state={state}
+          member={member}
+          activePass={activePass}
+          reservations={reservations}
+          requestCancel={requestCancel}
+          slotFor={slotFor}
+        />
+      )}
 
-        <section className="section-band">
-          <h3>내 예약</h3>
-          <div className="table-list">
-            {reservations
-              .filter((reservation) => ["requested", "confirmed", "cancel_requested"].includes(reservation.status))
-              .map((reservation) => {
-                const slot = slotFor(reservation.slotId);
-                return (
-                  <div className="table-row" key={reservation.id}>
-                    <span>{slot ? formatDateTime(slot.startAt) : "슬롯 없음"}</span>
-                    <StatusPill value={reservation.status} />
-                    {reservation.status === "confirmed" && (
-                      <button className="small-button" onClick={() => requestCancel(reservation.id)}>
-                        취소
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-          </div>
-        </section>
+      {memberTab === "booking" && (
+        <MemberBookingView
+          state={state}
+          weekDays={weekDays}
+          requestBooking={requestBooking}
+        />
+      )}
 
-        <section className="section-band wide">
-          <h3>예약 가능 시간</h3>
-          <div className="available-grid">
-            {visibleOpenSlots.slice(0, 12).map((slot) => (
-              <button className="available-slot" key={slot.id} onClick={() => requestBooking(slot.id)}>
-                <CalendarDays size={16} />
-                <span>{formatDateTime(slot.startAt)}</span>
+      {memberTab === "history" && (
+        <MemberHistoryView
+          activePass={activePass}
+          reservations={reservations}
+          passEvents={passEvents}
+          payments={payments}
+          slotFor={slotFor}
+        />
+      )}
+
+      <nav className="bottom-tabs member-bottom-tabs" aria-label="회원 메뉴">
+        <TabButton active={memberTab === "home"} onClick={() => setMemberTab("home")} icon={<Home size={18} />} label="홈" />
+        <TabButton active={memberTab === "booking"} onClick={() => setMemberTab("booking")} icon={<CalendarDays size={18} />} label="예약" />
+        <TabButton active={memberTab === "history"} onClick={() => setMemberTab("history")} icon={<History size={18} />} label="내역" />
+      </nav>
+    </section>
+  );
+}
+
+function MemberHomeView({
+  state,
+  member,
+  activePass,
+  reservations,
+  requestCancel,
+  slotFor
+}: {
+  state: AppState;
+  member: Member;
+  activePass?: PtPass;
+  reservations: Reservation[];
+  requestCancel: (reservationId: string) => void;
+  slotFor: (slotId: string) => AvailabilitySlot | undefined;
+}) {
+  const upcomingReservations = reservations.filter((reservation) =>
+    ["requested", "confirmed", "cancel_requested"].includes(reservation.status)
+  );
+  const nextReservation = upcomingReservations
+    .map((reservation) => ({ reservation, slot: slotFor(reservation.slotId) }))
+    .filter((item): item is { reservation: Reservation; slot: AvailabilitySlot } => Boolean(item.slot))
+    .sort((a, b) => a.slot.startAt.localeCompare(b.slot.startAt))[0];
+
+  return (
+    <div className="member-dashboard">
+      <section className="section-band">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">내 PT</p>
+            <h2>{member.name}</h2>
+          </div>
+          <UserCheck size={20} />
+        </div>
+        {activePass ? (
+          <div className="metric-grid">
+            <Metric label="잔여" value={`${activePass.remainingSessions}회`} />
+            <Metric label="만료" value={toInputDate(activePass.expiresOn)} />
+            <Metric label="결제" value={statusLabels[activePass.paymentStatus]} tone={activePass.paymentStatus === "paid" ? "good" : "warn"} />
+            <Metric label="재등록" value={shouldRenew(activePass, state) ? "상담 필요" : "정상"} tone={shouldRenew(activePass, state) ? "warn" : "good"} />
+          </div>
+        ) : (
+          <div className="empty-state">활성 PT권 없음</div>
+        )}
+      </section>
+
+      <section className="section-band">
+        <h3>다음 예약</h3>
+        {nextReservation ? (
+          <div className="table-row single">
+            <span>{formatDateTime(nextReservation.slot.startAt)}</span>
+            <StatusPill value={nextReservation.reservation.status} />
+            {nextReservation.reservation.status === "confirmed" && (
+              <button className="small-button" onClick={() => requestCancel(nextReservation.reservation.id)}>
+                취소
               </button>
-            ))}
+            )}
           </div>
-        </section>
+        ) : (
+          <div className="empty-state">예정된 예약이 없습니다.</div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function MemberBookingView({
+  state,
+  weekDays,
+  requestBooking
+}: {
+  state: AppState;
+  weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>;
+  requestBooking: (slotId: string) => void;
+}) {
+  const visibleUntil = addDays(new Date(), state.policies.booking.publishWeeks * 7).getTime();
+
+  return (
+    <section className="section-band week-screen">
+      <div className="panel-heading">
+        <div>
+          <p className="eyebrow">예약</p>
+          <h2>이번 주 가능 시간</h2>
+        </div>
+        <CalendarDays size={20} />
+      </div>
+      <div className="week-grid member-week-grid">
+        {weekDays.map((group) => (
+          <section className="week-day" key={group.day}>
+            <div className="week-day-heading">
+              <strong>{weekdayLabel(group.day)}</strong>
+              <span>{monthDayLabel(group.day)}</span>
+            </div>
+            <div className="slot-list">
+              {group.slots.filter((slot) => new Date(slot.startAt).getTime() <= visibleUntil).length === 0 && (
+                <div className="empty-slot">가능 시간 없음</div>
+              )}
+              {group.slots
+                .filter((slot) => new Date(slot.startAt).getTime() <= visibleUntil)
+                .map((slot) => (
+                  <button
+                    className={`member-slot-card ${slot.status}`}
+                    key={slot.id}
+                    onClick={() => slot.status === "open" && requestBooking(slot.id)}
+                    disabled={slot.status !== "open"}
+                  >
+                    <span>{timeLabel(slot.startAt)}</span>
+                    <StatusPill value={slot.status} />
+                  </button>
+                ))}
+            </div>
+          </section>
+        ))}
       </div>
     </section>
+  );
+}
+
+function MemberHistoryView({
+  activePass,
+  reservations,
+  passEvents,
+  payments,
+  slotFor
+}: {
+  activePass?: PtPass;
+  reservations: Reservation[];
+  passEvents: PassEvent[];
+  payments: Payment[];
+  slotFor: (slotId: string) => AvailabilitySlot | undefined;
+}) {
+  return (
+    <div className="member-dashboard">
+      <section className="section-band">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">회원권</p>
+            <h2>상세 정보</h2>
+          </div>
+          <History size={20} />
+        </div>
+        {activePass ? (
+          <div className="metric-grid">
+            <Metric label="상품" value={activePass.policySnapshot.productName} />
+            <Metric label="기간" value={`${activePass.startsOn} ~ ${activePass.expiresOn}`} />
+            <Metric label="잔여" value={`${activePass.remainingSessions}/${activePass.totalSessions}회`} />
+            <Metric label="금액" value={formatWon(activePass.price)} />
+          </div>
+        ) : (
+          <div className="empty-state">활성 PT권 없음</div>
+        )}
+      </section>
+
+      <section className="section-band">
+        <h3>결제 내역</h3>
+        <div className="table-list">
+          {payments.map((payment) => (
+            <div className="table-row" key={payment.id}>
+              <span>{formatDateTime(payment.updatedAt)}</span>
+              <StatusPill value={payment.status} />
+              <span>{formatWon(payment.amount)}</span>
+            </div>
+          ))}
+          {payments.length === 0 && <div className="empty-state">결제 내역이 없습니다.</div>}
+        </div>
+      </section>
+
+      <section className="section-band">
+        <h3>차감/연장/환불 이력</h3>
+        <div className="table-list">
+          {passEvents.map((event) => (
+            <div className="table-row" key={event.id}>
+              <span>{formatDateTime(event.createdAt)}</span>
+              <span>{event.reason}</span>
+              <strong>{event.deltaCount > 0 ? `+${event.deltaCount}` : event.deltaCount}</strong>
+            </div>
+          ))}
+          {passEvents.length === 0 && <div className="empty-state">회원권 이력이 없습니다.</div>}
+        </div>
+      </section>
+
+      <section className="section-band wide">
+        <h3>예약 이력</h3>
+        <div className="table-list">
+          {reservations.map((reservation) => {
+            const slot = slotFor(reservation.slotId);
+            return (
+              <div className="table-row" key={reservation.id}>
+                <span>{slot ? formatDateTime(slot.startAt) : "슬롯 없음"}</span>
+                <StatusPill value={reservation.status} />
+              </div>
+            );
+          })}
+          {reservations.length === 0 && <div className="empty-state">예약 이력이 없습니다.</div>}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -1245,16 +1522,45 @@ function buildTasks(state: AppState) {
   ];
 }
 
-function groupSlotsByDay(slots: AvailabilitySlot[]) {
+function buildSevenDayWeek(slots: AvailabilitySlot[]) {
   const sorted = [...slots].sort((a, b) => a.startAt.localeCompare(b.startAt));
-  const groups = new Map<string, AvailabilitySlot[]>();
+  const firstDay = sorted[0]?.startAt.slice(0, 10) ?? new Date().toISOString().slice(0, 10);
+  const start = dayDate(firstDay);
+  const groups = new Map<string, AvailabilitySlot[]>(
+    Array.from({ length: 7 }, (_, index) => {
+      const day = addDays(start, index).toISOString().slice(0, 10);
+      return [day, []];
+    })
+  );
 
   sorted.forEach((slot) => {
     const day = slot.startAt.slice(0, 10);
-    groups.set(day, [...(groups.get(day) ?? []), slot]);
+    if (groups.has(day)) {
+      groups.set(day, [...(groups.get(day) ?? []), slot]);
+    }
   });
 
   return Array.from(groups.entries()).map(([day, daySlots]) => ({ day, slots: daySlots }));
+}
+
+function weekdayLabel(day: string) {
+  return dayDate(day).toLocaleDateString("ko-KR", { weekday: "short", timeZone: "UTC" });
+}
+
+function monthDayLabel(day: string) {
+  return dayDate(day).toLocaleDateString("ko-KR", { month: "numeric", day: "numeric", timeZone: "UTC" });
+}
+
+function timeLabel(value: string) {
+  return new Date(value).toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  });
+}
+
+function dayDate(day: string) {
+  return new Date(`${day}T12:00:00Z`);
 }
 
 function buildCrmSummary(state: AppState) {
