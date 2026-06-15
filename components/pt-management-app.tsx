@@ -576,7 +576,7 @@ export function PtManagementApp() {
       </section>
 
       {mode === "admin" ? (
-        <section className="workspace with-bottom-nav">
+        <section className={adminTab === "home" ? "workspace admin-home-workspace with-bottom-nav" : "workspace with-bottom-nav"}>
             {adminTab === "home" && (
               <AdminHomeView
                 tasks={tasks}
@@ -868,8 +868,8 @@ function WeekSummary({
         const primaryReservation = reservations[0];
 
         return (
-          <section className="week-summary-day" key={group.day}>
-            <div className="week-day-heading">
+          <section className="week-summary-cell" key={group.day}>
+            <div className="week-summary-date">
               <strong>{weekdayLabel(group.day)}</strong>
               <span>{monthDayLabel(group.day)}</span>
             </div>

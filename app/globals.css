@@ -352,6 +352,13 @@ h3 {
   padding: 10px;
 }
 
+.admin-home-workspace {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
 .with-bottom-nav {
   position: relative;
 }
@@ -432,7 +439,7 @@ h3 {
 .week-summary-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 5px;
+  gap: 4px;
   overflow: visible;
 }
 
@@ -440,11 +447,19 @@ h3 {
   min-width: 0;
 }
 
-.week-summary-day {
+.week-summary-cell {
   min-width: 0;
-  display: grid;
-  grid-template-rows: 40px 68px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
   gap: 4px;
+  min-height: 98px;
+  padding: 7px 3px 6px;
+  border: 1px solid var(--line-soft);
+  border-radius: 11px;
+  background: var(--surface);
+  text-align: center;
 }
 
 .week-day-heading {
@@ -461,21 +476,23 @@ h3 {
   text-align: center;
 }
 
-.week-summary-day .week-day-heading {
-  min-height: 40px;
-  margin-bottom: 0;
-  border-radius: 10px;
-}
-
-.week-day-heading strong {
+.week-day-heading strong,
+.week-summary-date strong {
   font-size: 13px;
   white-space: nowrap;
 }
 
-.week-day-heading span {
+.week-day-heading span,
+.week-summary-date span {
   color: var(--muted);
   font-size: 11px;
   font-weight: 700;
+}
+
+.week-summary-date {
+  display: grid;
+  gap: 1px;
+  width: 100%;
 }
 
 .slot-list {
@@ -550,30 +567,29 @@ h3 {
 
 .week-summary-body {
   display: grid;
-  grid-template-rows: auto minmax(16px, 1fr) auto;
+  grid-template-rows: auto minmax(20px, 1fr) auto;
   align-items: center;
   min-width: 0;
-  min-height: 68px;
-  padding: 6px 4px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  text-align: center;
+  width: 100%;
+  gap: 2px;
 }
 
 .week-summary-body strong {
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1;
   white-space: nowrap;
 }
 
 .week-summary-body span {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
-  text-overflow: ellipsis;
+  line-height: 1.1;
+  overflow-wrap: normal;
   white-space: nowrap;
+  word-break: keep-all;
 }
 
 .summary-dots {
