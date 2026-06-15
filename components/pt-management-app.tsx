@@ -39,6 +39,8 @@ import {
 
 type AdminTab = "home" | "week" | "members" | "settings";
 type MemberTab = "home" | "booking" | "history";
+type SettingsSection = "root" | "products" | "policies" | "templates" | "csv";
+type PolicySection = "booking" | "cancellation" | "extension" | "renewal" | null;
 type CsvDatasetKey =
   | "members"
   | "memberLinkRequests"
@@ -1101,6 +1103,8 @@ function SettingsView({
   updatePolicy: (path: string, value: number | boolean | string) => void;
   updateProduct: (productId: string, field: "price" | "defaultValidDays" | "active", value: number | boolean) => void;
 }) {
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>("root");
+  const [policySection, setPolicySection] = useState<PolicySection>(null);
   const [selectedDatasets, setSelectedDatasets] = useState<CsvDatasetKey[]>([]);
   const [includePersonalData, setIncludePersonalData] = useState(false);
   const hasSelectedDatasets = selectedDatasets.length > 0;
@@ -1115,136 +1119,274 @@ function SettingsView({
     downloadCsvExport(state, selectedDatasets, includePersonalData);
   }
 
-  return (
-    <div className="settings-layout">
-      <section className="section-band">
-        <h3>PT 상품</h3>
-        <div className="product-table">
-          {state.policies.passProducts.map((product) => (
-            <div className="product-row" key={product.id}>
-              <strong>{product.name}</strong>
-              <label>
-                가격
-                <input
-                  type="number"
-                  value={product.price}
-                  onChange={(event) => updateProduct(product.id, "price", Number(event.target.value))}
-                />
-              </label>
-              <label>
-                유효일
-                <input
-                  type="number"
-                  value={product.defaultValidDays}
-                  onChange={(event) => updateProduct(product.id, "defaultValidDays", Number(event.target.value))}
-                />
-              </label>
-              <label className="switch-row">
-                <input
-                  type="checkbox"
-                  checked={product.active}
-                  onChange={(event) => updateProduct(product.id, "active", event.target.checked)}
-                />
-                활성
-              </label>
-            </div>
-          ))}
+  function openSection(section: SettingsSection) {
+    setSettingsSection(section);
+    setPolicySection(null);
+  }
+
+  function goToSettingsRoot() {
+    setSettingsSection("root");
+    setPolicySection(null);
+  }
+
+  function goToPoliciesRoot() {
+    setSettingsSection("policies");
+    setPolicySection(null);
+  }
+
+  if (settingsSection === "root") {
+    return (
+      <section className="section-band settings-menu">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">설정</p>
+            <h2>관리 메뉴</h2>
+          </div>
+          <Settings size={20} />
+        </div>
+        <div className="settings-menu-grid">
+          <SettingsMenuButton
+            title="PT 상품"
+            body="회차, 가격, 유효일, 활성 여부"
+            onClick={() => openSection("products")}
+          />
+          <SettingsMenuButton
+            title="운영 정책"
+            body="예약, 취소, 연장, 재등록 기준"
+            onClick={() => openSection("policies")}
+          />
+          <SettingsMenuButton
+            title="안내 문구"
+            body="예약, 결제, 재등록 복사용 문구"
+            onClick={() => openSection("templates")}
+          />
+          <SettingsMenuButton
+            title="CSV 내보내기"
+            body="회원, 예약, 결제, 정책 데이터 저장"
+            onClick={() => openSection("csv")}
+          />
         </div>
       </section>
+    );
+  }
 
-      <section className="policy-grid">
-        <PolicyInput label="공개 주차" value={state.policies.booking.publishWeeks} onChange={(value) => updatePolicy("booking.publishWeeks", value)} />
-        <PolicyInput label="요청 만료 시간" value={state.policies.booking.requestExpiryHours} onChange={(value) => updatePolicy("booking.requestExpiryHours", value)} />
-        <PolicyInput label="자동취소 기준" value={state.policies.cancellation.autoCancelHoursBeforeSession} onChange={(value) => updatePolicy("cancellation.autoCancelHoursBeforeSession", value)} />
-        <PolicyInput label="재등록 잔여횟수" value={state.policies.renewal.remainingSessionsThreshold} onChange={(value) => updatePolicy("renewal.remainingSessionsThreshold", value)} />
-        <PolicyInput label="재등록 만료일 기준" value={state.policies.renewal.daysBeforeExpiryThreshold} onChange={(value) => updatePolicy("renewal.daysBeforeExpiryThreshold", value)} />
-        <PolicyInput label="고정 예약 개수" value={state.policies.booking.fixedFutureBookingLimit} onChange={(value) => updatePolicy("booking.fixedFutureBookingLimit", value)} />
-        <label className="setting-card">
-          <span>예약 제한 방식</span>
-          <select
-            value={state.policies.booking.memberFutureBookingLimit}
-            onChange={(event) => updatePolicy("booking.memberFutureBookingLimit", event.target.value)}
-          >
-            <option value="remaining_sessions">잔여횟수 기준</option>
-            <option value="fixed_count">고정 개수</option>
-            <option value="unlimited">제한 없음</option>
-          </select>
-        </label>
-        <label className="setting-card">
-          <span>미납 예약 허용</span>
-          <input
-            type="checkbox"
-            checked={state.policies.booking.allowUnpaidBooking}
-            onChange={(event) => updatePolicy("booking.allowUnpaidBooking", event.target.checked)}
-          />
-        </label>
-        <label className="setting-card">
-          <span>24시간 이내 기본 차감</span>
-          <input
-            type="checkbox"
-            checked={state.policies.cancellation.lateCancelDefaultDeduct}
-            onChange={(event) => updatePolicy("cancellation.lateCancelDefaultDeduct", event.target.checked)}
-          />
-        </label>
-        <label className="setting-card">
-          <span>회원 연장요청 허용</span>
-          <input
-            type="checkbox"
-            checked={state.policies.extension.memberRequestEnabled}
-            onChange={(event) => updatePolicy("extension.memberRequestEnabled", event.target.checked)}
-          />
-        </label>
-        <label className="setting-card">
-          <span>회원 재등록 안내</span>
-          <input
-            type="checkbox"
-            checked={state.policies.renewal.showToMember}
-            onChange={(event) => updatePolicy("renewal.showToMember", event.target.checked)}
-          />
-        </label>
-      </section>
+  if (settingsSection === "products") {
+    return (
+      <div className="settings-layout">
+        <SettingsDetailHeader eyebrow="설정" title="PT 상품" onBack={goToSettingsRoot} />
+        <section className="section-band">
+          <h3>PT 상품</h3>
+          <div className="product-table">
+            {state.policies.passProducts.map((product) => (
+              <div className="product-row" key={product.id}>
+                <strong>{product.name}</strong>
+                <label>
+                  가격
+                  <input
+                    type="number"
+                    value={product.price}
+                    onChange={(event) => updateProduct(product.id, "price", Number(event.target.value))}
+                  />
+                </label>
+                <label>
+                  유효일
+                  <input
+                    type="number"
+                    value={product.defaultValidDays}
+                    onChange={(event) => updateProduct(product.id, "defaultValidDays", Number(event.target.value))}
+                  />
+                </label>
+                <label className="switch-row">
+                  <input
+                    type="checkbox"
+                    checked={product.active}
+                    onChange={(event) => updateProduct(product.id, "active", event.target.checked)}
+                  />
+                  활성
+                </label>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    );
+  }
 
-      <section className="section-band">
-        <h3>예외 사유와 안내 문구</h3>
-        <div className="template-grid">
-          <label>
-            취소 예외 사유
+  if (settingsSection === "policies" && policySection === null) {
+    return (
+      <div className="settings-layout">
+        <SettingsDetailHeader eyebrow="설정" title="운영 정책" onBack={goToSettingsRoot} />
+        <section className="section-band settings-menu">
+          <div className="settings-menu-grid">
+            <SettingsMenuButton
+              title="예약"
+              body="공개 범위, 요청 만료, 예약 제한"
+              marker="settings-policy-예약"
+              onClick={() => setPolicySection("booking")}
+            />
+            <SettingsMenuButton
+              title="취소"
+              body="자동취소 기준, 당일취소 차감"
+              marker="settings-policy-취소"
+              onClick={() => setPolicySection("cancellation")}
+            />
+            <SettingsMenuButton
+              title="연장"
+              body="회원 요청 허용, 기본 사유"
+              marker="settings-policy-연장"
+              onClick={() => setPolicySection("extension")}
+            />
+            <SettingsMenuButton
+              title="재등록"
+              body="잔여횟수, 만료일, 회원 노출"
+              marker="settings-policy-재등록"
+              onClick={() => setPolicySection("renewal")}
+            />
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  if (settingsSection === "policies" && policySection === "booking") {
+    return (
+      <div className="settings-layout">
+        <SettingsDetailHeader eyebrow="운영 정책" title="예약" onBack={goToPoliciesRoot} />
+        <section className="policy-grid">
+          <PolicyInput label="공개 주차" value={state.policies.booking.publishWeeks} onChange={(value) => updatePolicy("booking.publishWeeks", value)} />
+          <PolicyInput label="요청 만료 시간" value={state.policies.booking.requestExpiryHours} onChange={(value) => updatePolicy("booking.requestExpiryHours", value)} />
+          <PolicyInput label="고정 예약 개수" value={state.policies.booking.fixedFutureBookingLimit} onChange={(value) => updatePolicy("booking.fixedFutureBookingLimit", value)} />
+          <label className="setting-card">
+            <span>예약 제한 방식</span>
+            <select
+              value={state.policies.booking.memberFutureBookingLimit}
+              onChange={(event) => updatePolicy("booking.memberFutureBookingLimit", event.target.value)}
+            >
+              <option value="remaining_sessions">잔여횟수 기준</option>
+              <option value="fixed_count">고정 개수</option>
+              <option value="unlimited">제한 없음</option>
+            </select>
+          </label>
+          <label className="setting-card">
+            <span>미납 예약 허용</span>
+            <input
+              type="checkbox"
+              checked={state.policies.booking.allowUnpaidBooking}
+              onChange={(event) => updatePolicy("booking.allowUnpaidBooking", event.target.checked)}
+            />
+          </label>
+        </section>
+      </div>
+    );
+  }
+
+  if (settingsSection === "policies" && policySection === "cancellation") {
+    return (
+      <div className="settings-layout">
+        <SettingsDetailHeader eyebrow="운영 정책" title="취소" onBack={goToPoliciesRoot} />
+        <section className="policy-grid">
+          <PolicyInput label="자동취소 기준" value={state.policies.cancellation.autoCancelHoursBeforeSession} onChange={(value) => updatePolicy("cancellation.autoCancelHoursBeforeSession", value)} />
+          <label className="setting-card">
+            <span>24시간 이내 기본 차감</span>
+            <input
+              type="checkbox"
+              checked={state.policies.cancellation.lateCancelDefaultDeduct}
+              onChange={(event) => updatePolicy("cancellation.lateCancelDefaultDeduct", event.target.checked)}
+            />
+          </label>
+          <label className="setting-card">
+            <span>취소 예외 사유</span>
             <input
               value={state.policies.cancellation.exceptionReasons.join(", ")}
               onChange={(event) => updatePolicy("cancellation.exceptionReasons", event.target.value)}
             />
           </label>
-          <label>
-            연장 사유
+        </section>
+      </div>
+    );
+  }
+
+  if (settingsSection === "policies" && policySection === "extension") {
+    return (
+      <div className="settings-layout">
+        <SettingsDetailHeader eyebrow="운영 정책" title="연장" onBack={goToPoliciesRoot} />
+        <section className="policy-grid">
+          <label className="setting-card">
+            <span>회원 연장요청 허용</span>
+            <input
+              type="checkbox"
+              checked={state.policies.extension.memberRequestEnabled}
+              onChange={(event) => updatePolicy("extension.memberRequestEnabled", event.target.checked)}
+            />
+          </label>
+          <label className="setting-card">
+            <span>연장 사유</span>
             <input
               value={state.policies.extension.defaultReasons.join(", ")}
               onChange={(event) => updatePolicy("extension.defaultReasons", event.target.value)}
             />
           </label>
-          <label>
-            예약 확정 문구
-            <textarea
-              value={state.policies.copyTemplates.bookingApproved}
-              onChange={(event) => updatePolicy("copyTemplates.bookingApproved", event.target.value)}
-            />
-          </label>
-          <label>
-            결제 요청 문구
-            <textarea
-              value={state.policies.copyTemplates.paymentRequested}
-              onChange={(event) => updatePolicy("copyTemplates.paymentRequested", event.target.value)}
-            />
-          </label>
-          <label>
-            재등록 문구
-            <textarea
-              value={state.policies.copyTemplates.renewalNudge}
-              onChange={(event) => updatePolicy("copyTemplates.renewalNudge", event.target.value)}
-            />
-          </label>
-        </div>
-      </section>
+        </section>
+      </div>
+    );
+  }
 
+  if (settingsSection === "policies" && policySection === "renewal") {
+    return (
+      <div className="settings-layout">
+        <SettingsDetailHeader eyebrow="운영 정책" title="재등록" onBack={goToPoliciesRoot} />
+        <section className="policy-grid">
+          <PolicyInput label="재등록 잔여횟수" value={state.policies.renewal.remainingSessionsThreshold} onChange={(value) => updatePolicy("renewal.remainingSessionsThreshold", value)} />
+          <PolicyInput label="재등록 만료일 기준" value={state.policies.renewal.daysBeforeExpiryThreshold} onChange={(value) => updatePolicy("renewal.daysBeforeExpiryThreshold", value)} />
+          <label className="setting-card">
+            <span>회원 재등록 안내</span>
+            <input
+              type="checkbox"
+              checked={state.policies.renewal.showToMember}
+              onChange={(event) => updatePolicy("renewal.showToMember", event.target.checked)}
+            />
+          </label>
+        </section>
+      </div>
+    );
+  }
+
+  if (settingsSection === "templates") {
+    return (
+      <div className="settings-layout">
+        <SettingsDetailHeader eyebrow="설정" title="안내 문구" onBack={goToSettingsRoot} />
+        <section className="section-band">
+          <div className="template-grid">
+            <label>
+              예약 확정 문구
+              <textarea
+                value={state.policies.copyTemplates.bookingApproved}
+                onChange={(event) => updatePolicy("copyTemplates.bookingApproved", event.target.value)}
+              />
+            </label>
+            <label>
+              결제 요청 문구
+              <textarea
+                value={state.policies.copyTemplates.paymentRequested}
+                onChange={(event) => updatePolicy("copyTemplates.paymentRequested", event.target.value)}
+              />
+            </label>
+            <label>
+              재등록 문구
+              <textarea
+                value={state.policies.copyTemplates.renewalNudge}
+                onChange={(event) => updatePolicy("copyTemplates.renewalNudge", event.target.value)}
+              />
+            </label>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="settings-layout">
+      <SettingsDetailHeader eyebrow="설정" title="CSV 내보내기" onBack={goToSettingsRoot} />
       <section className="section-band">
         <div className="panel-heading">
           <div>
@@ -1297,6 +1439,50 @@ function PolicyInput({ label, value, onChange }: { label: string; value: number;
       <span>{label}</span>
       <input type="number" value={value} onChange={(event) => onChange(Number(event.target.value))} />
     </label>
+  );
+}
+
+function SettingsDetailHeader({
+  eyebrow,
+  title,
+  onBack
+}: {
+  eyebrow: string;
+  title: string;
+  onBack: () => void;
+}) {
+  return (
+    <section className="settings-detail-header">
+      <button className="small-button" type="button" onClick={onBack}>
+        뒤로
+      </button>
+      <div>
+        <p className="eyebrow">{eyebrow}</p>
+        <h2>{title}</h2>
+      </div>
+    </section>
+  );
+}
+
+function SettingsMenuButton({
+  title,
+  body,
+  marker,
+  onClick
+}: {
+  title: string;
+  body: string;
+  marker?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button className="settings-menu-button" type="button" data-marker={marker} onClick={onClick}>
+      <span>
+        <strong>{title}</strong>
+        <small>{body}</small>
+      </span>
+      <b aria-hidden="true">›</b>
+    </button>
   );
 }
 

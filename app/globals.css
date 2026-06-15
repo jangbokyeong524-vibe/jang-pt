@@ -372,9 +372,9 @@ h3 {
   right: 10px;
   bottom: calc(10px + env(safe-area-inset-bottom));
   z-index: 30;
-  display: flex;
+  display: grid;
   gap: 4px;
-  overflow-x: auto;
+  overflow: hidden;
   overscroll-behavior-x: contain;
   padding: 5px;
   border: 1px solid rgba(224, 224, 224, 0.86);
@@ -391,16 +391,15 @@ h3 {
 }
 
 .admin-bottom-tabs {
-  scroll-snap-type: x proximity;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .member-bottom-tabs {
-  scroll-snap-type: x proximity;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .tab {
-  flex: 0 0 70px;
-  min-width: 70px;
+  min-width: 0;
   min-height: 52px;
   padding: 0 6px;
   flex-direction: column;
@@ -410,7 +409,6 @@ h3 {
   color: var(--muted);
   font-size: 11px;
   font-weight: 700;
-  scroll-snap-align: start;
   white-space: nowrap;
 }
 
@@ -425,7 +423,8 @@ h3 {
 .small-button:not(.danger):hover,
 .icon-button:hover,
 .available-slot:hover,
-.member-row:hover {
+.member-row:hover,
+.settings-menu-button:hover {
   border-color: rgba(0, 102, 204, 0.28);
   background: var(--info-bg);
 }
@@ -984,6 +983,63 @@ textarea {
   gap: 14px;
 }
 
+.settings-menu-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.settings-menu-button,
+.settings-detail-header {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--row-radius);
+  background: var(--surface);
+}
+
+.settings-menu-button {
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 68px;
+  padding: 13px 14px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.settings-menu-button span {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.settings-menu-button strong {
+  font-size: 15px;
+}
+
+.settings-menu-button small {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.settings-menu-button b {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.settings-detail-header {
+  justify-content: start;
+  gap: 12px;
+  padding: 12px;
+}
+
 .product-table {
   display: grid;
   gap: 8px;
@@ -1267,6 +1323,7 @@ textarea {
   .csv-option-grid,
   .metric-grid,
   .policy-grid,
+  .settings-menu-grid,
   .template-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1310,7 +1367,6 @@ textarea {
 
   .tab {
     min-width: 0;
-    flex: 1 1 auto;
     min-height: 48px;
     flex-direction: row;
     font-size: 13px;
@@ -1417,6 +1473,7 @@ textarea {
   }
 
   .csv-option-grid,
+  .settings-menu-grid,
   .template-grid,
   .member-dashboard {
     grid-template-columns: repeat(2, minmax(0, 1fr));

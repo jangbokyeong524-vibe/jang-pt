@@ -2,7 +2,7 @@
 
 updated: 2026-06-15
 mode: codex-resume-index
-phase: settings-csv-export
+phase: settings-menu-depth
 
 ## Rules
 
@@ -22,9 +22,11 @@ phase: settings-csv-export
 - Local demo UI exists and runs from `lib/seed-data.ts`.
 - Supabase schema/docs are target design only; Auth, RLS, and DB transactions are not wired to the UI yet.
 - Admin/member screens use bottom tabs in the local demo UI.
-- Admin tabs are now `홈 / 주간 / 회원 / 설정`; the old `CRM` tab and copy summary view are removed.
-- Admin `설정` includes CSV 내보내기 with dataset checkboxes and an opt-in `개인정보 포함` checkbox.
-- CSV export downloads one `gangdong-pt-export-YYYY-MM-DD.csv` file in `exported_at,dataset,record_id,field,value` long-row format.
+- Admin tabs are `홈 / 주간 / 회원 / 설정`; the old `CRM` tab and copy summary view are removed.
+- Admin bottom tabs use an even 4-column grid so icon/label alignment fits the current 4-tab IA.
+- Admin `설정` now opens to a menu list: `PT 상품`, `운영 정책`, `안내 문구`, `CSV 내보내기`.
+- `운영 정책` has a second menu layer for `예약`, `취소`, `연장`, `재등록`.
+- CSV export still downloads one `gangdong-pt-export-YYYY-MM-DD.csv` file in `exported_at,dataset,record_id,field,value` long-row format.
 - With 개인정보 off, phone and normalized phone fields are excluded from member/member-link exports.
 - The top admin/member switch remains only as a development/demo review convenience until Supabase Auth role routing replaces it.
 
@@ -41,5 +43,5 @@ phase: settings-csv-export
 
 ## Last Verified
 
-- 2026-06-15: CSV export and 4-tab admin navigation verified with `npm run check:layout`, `git diff --check`, `npm run build`, and Playwright rendered checks at 320px, 390px, and 1280px against `http://127.0.0.1:3003/`.
-- 2026-06-15: Browser CSV checks verified disabled/enabled download state, filename format, header, and 개인정보 off/on phone inclusion behavior.
+- 2026-06-15: Settings menu depth and 4-tab alignment verified with `npm run check:layout`, `git diff --check`, `npm run build`, and Playwright rendered checks at 320px, 390px, and 1280px against `http://127.0.0.1:3003/`.
+- 2026-06-15: Browser checks verified settings root-only menu, policy submenu depth, back navigation, CSV disabled/enabled state, filename/header, and 개인정보 off/on phone behavior.

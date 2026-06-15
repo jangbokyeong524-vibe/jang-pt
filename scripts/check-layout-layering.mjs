@@ -81,6 +81,29 @@ assert(
   "settings CSV export should include an opt-in personal data checkbox"
 );
 
+assert(
+  /\.admin-bottom-tabs\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s.test(css),
+  "admin bottom tabs should use a four-column grid for even icon alignment"
+);
+
+assert(
+  !/\.tab\s*\{[^}]*flex:\s*0\s+0\s+70px/s.test(css) && !/\.tab\s*\{[^}]*min-width:\s*70px/s.test(css),
+  "bottom tab buttons must not keep the old fixed-width flex sizing"
+);
+
+for (const label of ["PT 상품", "운영 정책", "안내 문구", "CSV 내보내기"]) {
+  assert(component.includes(label), `settings root menu should include ${label}`);
+}
+
+for (const label of ["예약", "취소", "연장", "재등록"]) {
+  assert(component.includes(`settings-policy-${label}`), `settings policy submenu should include ${label}`);
+}
+
+assert(
+  component.includes("type SettingsSection") && component.includes("type PolicySection"),
+  "settings screen should use explicit section state for two- and three-depth navigation"
+);
+
 if (failures.length > 0) {
   console.error("Layout layering check failed:");
   for (const failure of failures) {
