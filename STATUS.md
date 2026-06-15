@@ -1,6 +1,6 @@
 # STATUS
 
-updated: 2026-06-15
+updated: 2026-06-16
 mode: codex-resume-index
 phase: pt-member-booking-mvp-docs-review-fix
 
@@ -58,6 +58,7 @@ phase: pt-member-booking-mvp-docs-review-fix
 
 ## Last Verified
 
+- 2026-06-16: `codex/week-layer-cleanup` merged into `main` and verified with `npm run build` before push to `origin/main`.
 - 2026-06-15: Payment/extension MVP criteria alignment verified with consistency search, `git diff --check`, `npm run check:layout`, and `npm run build`.
 - 2026-06-15: PT MVP docs review fix verified with consistency search, `git diff --check`, `npm run check:layout`, and `npm run build`.
 - 2026-06-15: PT member booking MVP docs updated and verified with `git diff --check`, `npm run check:layout`, and `npm run build`.
