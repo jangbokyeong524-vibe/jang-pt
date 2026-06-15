@@ -146,6 +146,7 @@ create table if not exists public.pass_events (
   pass_id uuid not null references public.pt_passes(id) on delete cascade,
   member_id uuid not null references public.members(id) on delete cascade,
   reservation_id uuid references public.reservations(id) on delete set null,
+  extension_request_id uuid,
   event_type text not null
     check (event_type in ('pass_created', 'session_completed', 'late_cancel_deducted', 'exception_restored', 'refund_adjusted', 'extension_added')),
   delta_count integer not null,
@@ -204,6 +205,29 @@ create table if not exists public.extension_requests (
 
 create index if not exists extension_requests_member_id_idx
   on public.extension_requests(member_id);
+
+alter table public.pass_events
+  add column if not exists extension_request_id uuid;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'pass_events_extension_request_id_fkey'
+  ) then
+    alter table public.pass_events
+      add constraint pass_events_extension_request_id_fkey
+      foreign key (extension_request_id)
+      references public.extension_requests(id)
+      on delete set null;
+  end if;
+end;
+$$;
+
+create unique index if not exists pass_events_one_extension_per_request_idx
+  on public.pass_events(extension_request_id)
+  where event_type = 'extension_added' and extension_request_id is not null;
 
 create table if not exists public.notifications (
   id uuid primary key default gen_random_uuid(),

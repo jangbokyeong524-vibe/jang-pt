@@ -33,6 +33,8 @@ phase: pt-member-booking-mvp-docs-review-fix
 - Auth, role routing, DB refetch after RPC, payment status RPC, and extension approval RPC are still not wired.
 - Local demo review and operating MVP completion are now treated as separate gates in `docs/TEST_PLAN.md`.
 - Member extension requests and admin extension approval are MVP-required scope, not post-MVP expansion.
+- README, SECURITY, DATA_MODEL, TEST_PLAN, OPERATIONS, and schema draft now align on payment/extension server-boundary requirements.
+- `docs/supabase-schema.sql` now includes `pass_events.extension_request_id` and a unique `extension_added`-per-request index for the target extension approval design.
 - Admin/member screens use bottom tabs in the local demo UI.
 - Admin tabs are `홈 / 주간 / 회원 / 설정`; the old `CRM` tab and copy summary view are removed.
 - Admin bottom tabs use an even 4-column grid so icon/label alignment fits the current 4-tab IA.
@@ -56,6 +58,7 @@ phase: pt-member-booking-mvp-docs-review-fix
 
 ## Last Verified
 
+- 2026-06-15: Payment/extension MVP criteria alignment verified with consistency search, `git diff --check`, `npm run check:layout`, and `npm run build`.
 - 2026-06-15: PT MVP docs review fix verified with consistency search, `git diff --check`, `npm run check:layout`, and `npm run build`.
 - 2026-06-15: PT member booking MVP docs updated and verified with `git diff --check`, `npm run check:layout`, and `npm run build`.
 - 2026-06-15: Reservation RPC boundary verified with RED `npm run check:layout` failure before implementation, then `npm run check:layout`, `git diff --check`, and `npm run build`.

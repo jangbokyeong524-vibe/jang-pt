@@ -4,7 +4,7 @@
 
 이 문서는 `docs/supabase-schema.sql`을 읽기 쉽게 설명한다.
 
-현재 SQL은 예약 요청, 승인, 거절, 취소 요청, 수업완료, 취소 차감처럼 상태가 여러 테이블에 걸쳐 바뀌는 작업을 RPC 중심으로 처리한다. 결제상태 변경과 연장 승인 RPC는 다음 보강 범위다.
+현재 SQL은 예약 요청, 승인, 거절, 취소 요청, 수업완료, 취소 차감처럼 상태가 여러 테이블에 걸쳐 바뀌는 작업을 RPC 중심으로 처리한다. 결제상태 변경과 연장 승인 RPC 또는 동등한 관리자 서버 트랜잭션은 운영 MVP 필수 보강 범위다.
 
 핵심 원칙:
 
@@ -146,6 +146,7 @@ PT권 잔여횟수와 관련된 원장형 이벤트.
 - `pass_id`: PT권
 - `member_id`: 회원
 - `reservation_id`: 관련 예약
+- `extension_request_id`: 관련 연장 요청
 - `event_type`: 이벤트 종류
 - `delta_count`: 회차 증감
 - `reason`: 사유
@@ -161,9 +162,10 @@ PT권 잔여횟수와 관련된 원장형 이벤트.
 - `refund_adjusted`: 환불 조정
 - `extension_added`: 연장
 
-중복 차감 방지:
+중복 반영 방지:
 
 - 같은 예약의 `session_completed`, `late_cancel_deducted` 이벤트는 unique index로 중복 삽입을 막는다.
+- 같은 연장 요청의 `extension_added` 이벤트는 `extension_request_id` 기준 unique index로 중복 삽입을 막는다.
 
 ## 8. 예약 가능 시간과 예약
 
@@ -259,7 +261,7 @@ PT권 결제 상태.
 - `status`: `requested`, `approved`, `rejected`
 - `decided_by`, `decided_at`: 처리자와 처리 시간
 
-승인 시 PT권 만료일을 늘리고 `pass_events`에 `extension_added`를 기록한다.
+승인 시 PT권 만료일을 늘리고 `pass_events`에 `extension_added`를 기록한다. 승인 이벤트는 `extension_request_id`로 원 요청과 연결되어야 하며 같은 요청이 두 번 승인되어 만료일이 중복 증가하면 안 된다.
 
 ### `notifications`
 
@@ -386,6 +388,40 @@ PT권 결제 상태.
 - `requested` 예약을 `expired`로 변경
 - 만료된 `held` 슬롯을 `open`으로 복구
 
+### 결제상태 변경 RPC 또는 관리자 서버 트랜잭션
+
+운영 MVP 완료 전 필수 보강 범위다.
+
+검증:
+
+- 관리자만 실행 가능
+- 대상 `payments`와 `pt_passes`가 같은 PT권을 가리켜야 함
+- 변경 가능한 상태값은 `unpaid`, `boxpos_requested`, `paid`, `refunded`로 제한함
+
+처리:
+
+- `payments.status`와 `pt_passes.payment_status`를 같은 최종 상태로 변경
+- `payment_events`에 변경 전 상태, 변경 후 상태, 변경자, 근거 메모를 기록
+- 재시도 시 중복 이력 생성 여부가 명확해야 하며, 불일치 상태로 일부 테이블만 변경되면 안 됨
+
+### 연장 승인 RPC 또는 관리자 서버 트랜잭션
+
+운영 MVP 완료 전 필수 보강 범위다.
+
+검증:
+
+- 관리자만 실행 가능
+- 연장 요청 상태가 `requested`여야 함
+- 대상 `extension_requests.pass_id`가 같은 회원의 활성 PT권이어야 함
+
+처리:
+
+- 승인 시 `extension_requests.status`를 `approved`로 변경하고 `decided_by`, `decided_at`을 기록
+- 승인 시 `pt_passes.expires_on`을 요청 일수만큼 연장
+- 승인 시 `pass_events`에 `extension_added` 이벤트를 `extension_request_id`와 함께 기록
+- 같은 `extension_request_id`의 `extension_added` 이벤트가 이미 있으면 만료일을 다시 늘리지 않음
+- 거절 시 만료일과 `pass_events`는 바꾸지 않고 요청 상태와 처리자만 기록
+
 ## 12. RLS 요약
 
 관리자:
@@ -397,12 +433,14 @@ PT권 결제 상태.
 
 - 승인된 본인 `member_id` 데이터만 조회 가능
 - 예약 생성과 취소 변경은 직접 `insert/update`가 아니라 `request_reservation`, `request_reservation_cancel` RPC만 사용
-- 본인 연장요청 생성 가능
+- 본인 연장요청 생성과 조회만 가능
 - 기준 함수: `approved_member_id()`
 
 주의:
 
 - 회원의 직접 `reservations insert/update` 정책은 두지 않는다.
+- 회원의 직접 `extension_requests update` 정책은 두지 않는다.
+- 결제상태 변경과 연장 승인/거절은 관리자 권한이 확인되는 서버 경계에서만 처리한다.
 - PT권 소유 여부, 슬롯 상태, 예약 개수 제한, 미납 예약 허용 여부, 24시간 취소 기준은 예약 RPC에서 트랜잭션으로 강제한다.
 
 회원이 볼 수 없는 것:

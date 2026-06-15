@@ -37,6 +37,7 @@
 - 같은 예약의 수업완료 또는 당일취소 차감은 중복 실행해도 1회만 차감된다.
 - 결제상태 변경은 관리자 RPC 또는 동등한 서버 경계로 처리되고 `payment_events` 이력이 남는다.
 - 연장 승인/거절은 관리자 RPC 또는 동등한 DB 트랜잭션으로 처리되고 `extension_requests`, PT권 만료일, `pass_events` 이력이 함께 정합성을 유지한다.
+- 결제상태 변경과 연장 승인은 클라이언트 직접 update가 아니라 관리자 권한이 확인되는 서버 경계에서만 수행된다.
 
 ### MVP 밖
 
@@ -221,6 +222,8 @@ DB 트랜잭션 확인:
 
 ## 11. 결제상태 테스트
 
+이 장은 MVP 필수 통합 테스트다. 운영 MVP 완료 전에는 결제상태 변경 RPC 또는 동등한 관리자 서버 경계를 실제 DB 기준으로 검증해야 한다.
+
 시나리오:
 
 1. PT권을 신규 등록한다.
@@ -232,7 +235,12 @@ DB 트랜잭션 확인:
 기대 결과:
 
 - 관리자/회원 화면에 결제상태가 명확히 표시된다.
+- 관리자 권한이 없으면 결제상태를 바꿀 수 없다.
+- 클라이언트가 `pt_passes.payment_status`, `payments.status`, `payment_events`를 직접 불일치 상태로 update/insert할 수 없어야 한다.
+- 상태 변경 성공 시 `pt_passes.payment_status`와 `payments.status`가 같은 최종 상태를 가진다.
 - `payment_events`에 상태 변경 이력이 남는다.
+- `payment_events.from_status`, `payment_events.to_status`, 변경자, 메모, 시간이 남는다.
+- 같은 요청을 재시도해도 같은 상태 변경 이력이 중복으로 쌓이지 않거나, 재시도가 별도 감사 이벤트로 남는 기준이 명확해야 한다.
 - 미납 상태에서도 정책상 허용이면 예약 요청 가능하다.
 - 정책상 미납 예약이 금지되면 미납/결제요청 PT권으로 예약 요청할 수 없다.
 
@@ -249,8 +257,10 @@ DB 트랜잭션 확인:
 
 - `extension_requests.status`가 `approved`가 된다.
 - PT권 만료일이 요청 일수만큼 늘어난다.
-- `pass_events`에 `extension_added` 이력이 남는다.
+- `pass_events`에 `extension_added` 이력이 남고 해당 이벤트가 `extension_requests.id`와 연결된다.
 - 승인 요청을 반복 실행해도 만료일과 `pass_events`가 중복 반영되지 않는다.
+- 관리자 권한이 없으면 승인/거절할 수 없다.
+- 회원은 본인 연장요청을 만들고 읽을 수 있지만, 직접 `approved`나 `rejected`로 바꿀 수 없다.
 
 ## 13. 재등록 테스트
 
