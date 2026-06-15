@@ -2,7 +2,7 @@
 
 updated: 2026-06-15
 mode: codex-resume-index
-phase: pt-member-booking-mvp-docs
+phase: pt-member-booking-mvp-docs-review-fix
 
 ## Rules
 
@@ -31,6 +31,8 @@ phase: pt-member-booking-mvp-docs
 - `npm run check:layout` now includes static Supabase reservation RPC contract checks.
 - `docs/DATA_MODEL.md`, `docs/SECURITY.md`, and `docs/TEST_PLAN.md` describe the reservation RPC state transitions and verification criteria.
 - Auth, role routing, DB refetch after RPC, payment status RPC, and extension approval RPC are still not wired.
+- Local demo review and operating MVP completion are now treated as separate gates in `docs/TEST_PLAN.md`.
+- Member extension requests and admin extension approval are MVP-required scope, not post-MVP expansion.
 - Admin/member screens use bottom tabs in the local demo UI.
 - Admin tabs are `홈 / 주간 / 회원 / 설정`; the old `CRM` tab and copy summary view are removed.
 - Admin bottom tabs use an even 4-column grid so icon/label alignment fits the current 4-tab IA.
@@ -42,9 +44,9 @@ phase: pt-member-booking-mvp-docs
 
 ## Next Actions
 
-1. Improve the visible member reservation MVP flow: member home status, booking selection, requested/confirmed/cancel_requested copy, and payment warnings.
-2. Wire DB reads/refetch after reservation RPC calls.
-3. Design payment status and extension approval RPCs.
+1. Design and wire MVP-required payment status and extension approval RPCs, including payment/extension/pass event history.
+2. Wire DB reads/refetch after reservation/payment/extension RPC calls.
+3. Improve the visible member reservation MVP flow: member home status, booking selection, requested/confirmed/cancel_requested copy, and payment warnings.
 4. Start Supabase Auth callback design and replace the demo admin/member switch with account role routing.
 5. Apply `docs/supabase-schema.sql` to a real Supabase project and run manual RPC integration checks from `docs/TEST_PLAN.md` once project credentials exist.
 
@@ -54,6 +56,7 @@ phase: pt-member-booking-mvp-docs
 
 ## Last Verified
 
+- 2026-06-15: PT MVP docs review fix verified with consistency search, `git diff --check`, `npm run check:layout`, and `npm run build`.
 - 2026-06-15: PT member booking MVP docs updated and verified with `git diff --check`, `npm run check:layout`, and `npm run build`.
 - 2026-06-15: Reservation RPC boundary verified with RED `npm run check:layout` failure before implementation, then `npm run check:layout`, `git diff --check`, and `npm run build`.
 - 2026-06-15: Settings menu depth and 4-tab alignment verified with `npm run check:layout`, `git diff --check`, `npm run build`, and Playwright rendered checks at 320px, 390px, and 1280px against `http://127.0.0.1:3003/`.
