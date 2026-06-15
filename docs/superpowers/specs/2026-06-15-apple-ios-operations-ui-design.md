@@ -1,7 +1,7 @@
 # Apple iOS Operations UI Design
 
 Date: 2026-06-15
-Status: approved for implementation planning
+Status: direction approved, pending implementation plan
 
 ## Context
 
@@ -50,7 +50,7 @@ Adopt Apple-inspired tokens in `app/globals.css`:
 - Canvas: `#f5f5f7`.
 - Surface: `#ffffff`.
 - Ink: `#1d1d1f`.
-- Muted text: `#6e6e73` or nearby Apple muted gray.
+- Muted text: `#6e6e73`.
 - Hairline: `#e0e0e0`.
 - Soft divider: `#f0f0f0`.
 - Primary action: `#0066cc`.
@@ -58,10 +58,10 @@ Adopt Apple-inspired tokens in `app/globals.css`:
 
 Keep semantic status colors, but tune them to softer iOS-like backgrounds:
 
-- Good: green text on soft green.
-- Warning/request: amber text on soft amber.
-- Danger/cancel: red text on soft red.
-- Info: blue text on soft blue.
+- Good: text `#1f7a45` on background `#e7f6ed`.
+- Warning/request: text `#8a5a00` on background `#fff4d8`.
+- Danger/cancel: text `#b42318` on background `#ffebe8`.
+- Info: text `#0066cc` on background `#eaf4ff`.
 
 ### Typography
 
@@ -81,8 +81,8 @@ Do not use viewport-scaled typography. Use compact operating-tool sizes:
 
 ### Shapes and Elevation
 
-- Prefer 16-18px panel radius for top-level grouped iOS surfaces.
-- Keep smaller 10-14px radius for repeated rows and slots.
+- Prefer 16-18px panel radius for top-level grouped iOS surfaces. This is an Apple UI exception to the base `docs/design.md` 8px card rule.
+- Keep smaller 10-14px radius for repeated rows, slots, task items, and status elements.
 - Buttons and segmented controls may be pill-shaped.
 - Remove most heavy shadows. Use borders and subtle background contrast.
 - Do not nest visual cards deeply.
@@ -153,7 +153,7 @@ Target components:
 - `.status-pill`
 - form controls
 
-The main implementation should be mostly CSS. JSX changes should be limited to class names or small structural wrappers if required for visual hierarchy.
+The main implementation should be CSS-first. JSX structural changes are allowed only when required for visual hierarchy, accessibility, or responsive grouping.
 
 ## Testing and Verification
 

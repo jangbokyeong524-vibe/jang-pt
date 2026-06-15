@@ -2,7 +2,7 @@
 
 updated: 2026-06-15
 mode: codex-resume-index
-phase: prototype-docs-baseline
+phase: apple-ios-ui-design-ready
 
 ## Rules
 
@@ -26,14 +26,15 @@ phase: prototype-docs-baseline
 - Supabase schema/docs are target design only.
 - Kakao/Google Auth, RLS, and DB transactions are not wired to the UI.
 - Mobile-first design is part of the baseline.
+- Apple iOS operations UI direction is documented in `DESIGN.md` and `docs/superpowers/specs/2026-06-15-apple-ios-operations-ui-design.md`.
 - Git repository is initialized.
 - Git is installed at `C:\Program Files\Git\cmd\git.exe`, but current PowerShell PATH may not include it.
 
 ## Next Actions
 
-1. Start Supabase Auth callback design.
-2. Wire Supabase client/auth state into the UI.
-3. Design reservation request/cancel RPC or server actions.
+1. Create implementation plan for the Apple iOS operations UI pass.
+2. Apply the CSS-first UI redesign to the local demo screen.
+3. Verify mobile and desktop visual behavior, then continue Supabase/Auth work.
 
 ## Blockers
 
