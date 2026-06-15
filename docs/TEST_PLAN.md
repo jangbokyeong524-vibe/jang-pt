@@ -84,6 +84,12 @@ npm.cmd run dev
 
 ## 6. 예약 요청 테스트
 
+RPC:
+
+- `request_reservation(target_slot_id uuid, target_pass_id uuid)`
+- `approve_reservation(target_reservation_id uuid)`
+- `reject_reservation(target_reservation_id uuid)`
+
 시나리오:
 
 1. 회원이 열린 슬롯 1개를 예약 요청한다.
@@ -97,6 +103,8 @@ npm.cmd run dev
 - 관장 화면 처리 필요 패널에 예약요청이 표시된다.
 - 관장이 승인하면 예약은 `confirmed`, 슬롯은 `confirmed`가 된다.
 - 관장이 거절하면 예약은 `cancelled`, 슬롯은 `open`이 된다.
+- 슬롯이 이미 `held` 또는 `confirmed`이면 `request_reservation`은 실패한다.
+- 잔여횟수 부족, 예약 제한 초과, 미납 예약 금지 정책 위반 시 예약과 슬롯 상태가 모두 바뀌지 않는다.
 
 ## 7. 요청 만료 테스트
 
@@ -127,6 +135,10 @@ npm.cmd run dev
 
 ## 9. 수업완료와 차감 테스트
 
+RPC:
+
+- `complete_session(target_reservation_id uuid)`
+
 시나리오:
 
 1. 예약 상태가 `confirmed`다.
@@ -138,8 +150,14 @@ npm.cmd run dev
 - PT권 잔여횟수가 1회 줄어든다.
 - `pass_events`에 `session_completed`, `delta_count = -1` 이벤트가 생긴다.
 - 같은 예약에 대해 버튼을 여러 번 눌러도 1회만 차감된다.
+- 같은 예약의 수업완료 이벤트가 이미 있으면 추가 차감되지 않는다.
 
 ## 10. 취소 테스트
+
+RPC:
+
+- `request_reservation_cancel(target_reservation_id uuid)`
+- `resolve_late_cancel(target_reservation_id uuid, should_deduct boolean)`
 
 24시간 전 자동취소:
 
@@ -159,6 +177,16 @@ npm.cmd run dev
 - 차감 선택 시 잔여횟수 1회 감소 및 이벤트 기록.
 - 미차감 선택 시 잔여횟수 유지.
 - 처리 결과가 예약 이력에 남는다.
+- `request_reservation_cancel`은 `auto_cancelled` 또는 `cancel_requested`를 반환한다.
+- `resolve_late_cancel`은 `cancel_requested` 예약에만 동작한다.
+- 같은 예약에 대해 `late_cancel_deducted` 이벤트가 이미 있으면 추가 차감되지 않는다.
+
+DB 트랜잭션 확인:
+
+- 회원이 직접 `reservations insert/update`로 예약 요청이나 취소요청을 만들 수 없어야 한다.
+- `request_reservation`, `approve_reservation`, `reject_reservation`, `request_reservation_cancel`, `resolve_late_cancel`은 모두 `security definer` 함수여야 한다.
+- 관리자 RPC는 `is_admin()` 가드를 통과해야 한다.
+- 회원 RPC는 `approved_member_id()` 가드를 통과해야 한다.
 
 ## 11. 결제상태 테스트
 

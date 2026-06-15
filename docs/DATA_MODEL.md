@@ -4,7 +4,7 @@
 
 이 문서는 `docs/supabase-schema.sql`을 읽기 쉽게 설명한다.
 
-현재 SQL은 초기 스키마와 기본 RLS 초안이다. 운영 배포 전에는 예약 요청, 취소 요청, 수업완료, 결제상태 변경처럼 상태가 여러 테이블에 걸쳐 바뀌는 작업을 RPC 또는 서버 액션 중심으로 보강해야 한다.
+현재 SQL은 예약 요청, 승인, 거절, 취소 요청, 수업완료, 취소 차감처럼 상태가 여러 테이블에 걸쳐 바뀌는 작업을 RPC 중심으로 처리한다. 결제상태 변경과 연장 승인 RPC는 다음 보강 범위다.
 
 핵심 원칙:
 
@@ -294,6 +294,88 @@ PT권 결제 상태.
 - 예약 상태가 `confirmed`여야 함
 - 잔여횟수가 1회 이상이어야 함
 - 이미 완료된 예약이면 추가 차감하지 않음
+- `pass_events_one_completion_per_reservation_idx` 충돌 시 추가 차감하지 않음
+
+### `request_reservation(target_slot_id uuid, target_pass_id uuid)`
+
+회원 예약 요청과 슬롯 잠금을 하나의 트랜잭션으로 처리한다.
+
+검증:
+
+- 승인된 회원만 실행 가능
+- `target_pass_id`가 본인 활성 PT권이어야 함
+- 잔여횟수가 1회 이상이어야 함
+- 정책상 미납 예약이 꺼져 있으면 결제상태가 `paid`여야 함
+- 슬롯이 `open` 상태이고 미래 시간이며 정책의 공개 주차 안이어야 함
+- 예약 제한은 `remaining_sessions`, `fixed_count`, `unlimited` 정책을 적용함
+
+처리:
+
+- 예약을 `requested`로 생성
+- 슬롯을 `held`로 변경
+- `locked_until`과 `held_until`을 정책의 요청 만료 시간 기준으로 저장
+- 예약 생성 당시 취소/요청 정책 값을 `policy_snapshot`에 저장
+
+### `approve_reservation(target_reservation_id uuid)`
+
+관리자가 요청 예약을 확정한다.
+
+검증:
+
+- 관리자만 실행 가능
+- 예약 상태가 `requested`여야 함
+
+처리:
+
+- 예약을 `confirmed`로 변경
+- 슬롯을 `confirmed`로 변경
+- `held_until`을 비움
+
+### `reject_reservation(target_reservation_id uuid)`
+
+관리자가 요청 예약을 거절한다.
+
+검증:
+
+- 관리자만 실행 가능
+- 예약 상태가 `requested`여야 함
+
+처리:
+
+- 예약을 `cancelled`로 변경
+- 슬롯을 `open`으로 복구
+- `held_until`을 비움
+
+### `request_reservation_cancel(target_reservation_id uuid)`
+
+회원이 본인 예약 취소를 요청한다.
+
+검증:
+
+- 승인된 회원만 실행 가능
+- 본인 예약만 실행 가능
+- 예약 상태가 `requested` 또는 `confirmed`여야 함
+
+처리:
+
+- 수업 시작이 자동취소 기준 이상 남았으면 예약을 `cancelled`, 슬롯을 `open`으로 처리하고 `auto_cancelled` 반환
+- 자동취소 기준 이내면 예약을 `cancel_requested`로 변경하고 정책의 기본 차감값을 `deduct_on_cancel`에 저장한 뒤 `cancel_requested` 반환
+
+### `resolve_late_cancel(target_reservation_id uuid, should_deduct boolean)`
+
+관리자가 24시간 이내 취소요청의 차감 여부를 결정한다.
+
+검증:
+
+- 관리자만 실행 가능
+- 예약 상태가 `cancel_requested`여야 함
+- 차감 처리 시 잔여횟수가 1회 이상이어야 함
+
+처리:
+
+- `should_deduct=true`이면 `late_cancel_deducted` 이벤트를 기록하고, 이벤트가 새로 삽입된 경우에만 PT권 잔여횟수를 1회 차감
+- 예약을 `cancelled`로 변경
+- 슬롯을 `open`으로 복구
 
 ### `expire_requested_reservations()`
 
@@ -314,15 +396,14 @@ PT권 결제 상태.
 회원:
 
 - 승인된 본인 `member_id` 데이터만 조회 가능
-- 본인 예약 요청 생성 가능
-- 본인 취소요청 생성 가능
+- 예약 생성과 취소 변경은 직접 `insert/update`가 아니라 `request_reservation`, `request_reservation_cancel` RPC만 사용
 - 본인 연장요청 생성 가능
 - 기준 함수: `approved_member_id()`
 
 주의:
 
-- 현재 예약 insert/update RLS는 기본 소유권과 상태값만 확인하는 초안이다.
-- PT권 소유 여부, 슬롯 상태, 예약 개수 제한, 미납 예약 허용 여부, 24시간 취소 기준은 운영 전 RPC 또는 서버 액션에서 트랜잭션으로 강제해야 한다.
+- 회원의 직접 `reservations insert/update` 정책은 두지 않는다.
+- PT권 소유 여부, 슬롯 상태, 예약 개수 제한, 미납 예약 허용 여부, 24시간 취소 기준은 예약 RPC에서 트랜잭션으로 강제한다.
 
 회원이 볼 수 없는 것:
 

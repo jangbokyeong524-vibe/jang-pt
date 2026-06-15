@@ -2,7 +2,7 @@
 
 updated: 2026-06-15
 mode: codex-resume-index
-phase: settings-menu-depth
+phase: reservation-rpc-boundary
 
 ## Rules
 
@@ -20,7 +20,14 @@ phase: settings-menu-depth
 ## Current State
 
 - Local demo UI exists and runs from `lib/seed-data.ts`.
-- Supabase schema/docs are target design only; Auth, RLS, and DB transactions are not wired to the UI yet.
+- Supabase project is not connected, but reservation state changes now have a target RPC boundary in `docs/supabase-schema.sql`.
+- Reservation request/approve/reject/cancel/late-cancel/complete operations are represented by `lib/reservation-actions.ts`.
+- When Supabase env is missing, reservation actions keep using local demo state fallback behavior.
+- When Supabase env exists, the reservation adapter calls `request_reservation`, `approve_reservation`, `reject_reservation`, `request_reservation_cancel`, `resolve_late_cancel`, and `complete_session`.
+- Member direct `reservations insert/update` RLS policies are removed from the schema draft; members should use reservation RPCs.
+- `npm run check:layout` now includes static Supabase reservation RPC contract checks.
+- `docs/DATA_MODEL.md`, `docs/SECURITY.md`, and `docs/TEST_PLAN.md` describe the reservation RPC state transitions and verification criteria.
+- Auth, role routing, DB refetch after RPC, payment status RPC, and extension approval RPC are still not wired.
 - Admin/member screens use bottom tabs in the local demo UI.
 - Admin tabs are `홈 / 주간 / 회원 / 설정`; the old `CRM` tab and copy summary view are removed.
 - Admin bottom tabs use an even 4-column grid so icon/label alignment fits the current 4-tab IA.
@@ -32,10 +39,11 @@ phase: settings-menu-depth
 
 ## Next Actions
 
-1. Start Supabase Auth callback design.
-2. Replace the demo admin/member switch with account role routing.
-3. Wire Supabase client/auth state into the UI.
-4. Design reservation request/cancel RPC or server actions.
+1. Apply `docs/supabase-schema.sql` to a real Supabase project and run manual RPC integration checks from `docs/TEST_PLAN.md`.
+2. Start Supabase Auth callback design.
+3. Replace the demo admin/member switch with account role routing.
+4. Wire DB reads/refetch after reservation RPC calls.
+5. Design payment status and extension approval RPCs.
 
 ## Blockers
 
@@ -43,5 +51,6 @@ phase: settings-menu-depth
 
 ## Last Verified
 
+- 2026-06-15: Reservation RPC boundary verified with RED `npm run check:layout` failure before implementation, then `npm run check:layout`, `git diff --check`, and `npm run build`.
 - 2026-06-15: Settings menu depth and 4-tab alignment verified with `npm run check:layout`, `git diff --check`, `npm run build`, and Playwright rendered checks at 320px, 390px, and 1280px against `http://127.0.0.1:3003/`.
 - 2026-06-15: Browser checks verified settings root-only menu, policy submenu depth, back navigation, CSV disabled/enabled state, filename/header, and 개인정보 off/on phone behavior.

@@ -16,7 +16,16 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+import {
+  approveReservationAction,
+  completeSessionAction,
+  rejectReservationAction,
+  requestReservationAction,
+  requestReservationCancelAction,
+  resolveLateCancelAction
+} from "@/lib/reservation-actions";
 import { initialState } from "@/lib/seed-data";
+import { createBrowserSupabaseClient } from "@/lib/supabase";
 import type {
   AppState,
   AvailabilitySlot,
@@ -100,6 +109,7 @@ export function PtManagementApp() {
   const [selectedMemberId, setSelectedMemberId] = useState("member_1");
   const [memberSessionId, setMemberSessionId] = useState("member_3");
   const [message, setMessage] = useState("데모 데이터가 로드되었습니다.");
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const selectedMember = state.members.find((member) => member.id === selectedMemberId) ?? state.members[0];
   const loggedInMember = state.members.find((member) => member.id === memberSessionId) ?? state.members[0];
@@ -135,239 +145,316 @@ export function PtManagementApp() {
     setMessage("회원 연결을 승인했습니다.");
   }
 
-  function approveReservation(reservationId: string) {
-    setState((current) => ({
-      ...current,
-      reservations: current.reservations.map((reservation) =>
-        reservation.id === reservationId
-          ? { ...reservation, status: "confirmed", confirmedAt: new Date().toISOString() }
-          : reservation
-      ),
-      slots: current.slots.map((slot) =>
-        current.reservations.find((reservation) => reservation.id === reservationId)?.slotId === slot.id
-          ? { ...slot, status: "confirmed", heldUntil: undefined, reservationId }
-          : slot
-      )
-    }));
-    setMessage("예약을 확정했습니다.");
+  async function approveReservation(reservationId: string) {
+    try {
+      await approveReservationAction({
+        supabase,
+        targetReservationId: reservationId,
+        fallback: () => {
+          setState((current) => ({
+            ...current,
+            reservations: current.reservations.map((reservation) =>
+              reservation.id === reservationId
+                ? { ...reservation, status: "confirmed", confirmedAt: new Date().toISOString() }
+                : reservation
+            ),
+            slots: current.slots.map((slot) =>
+              current.reservations.find((reservation) => reservation.id === reservationId)?.slotId === slot.id
+                ? { ...slot, status: "confirmed", heldUntil: undefined, reservationId }
+                : slot
+            )
+          }));
+        }
+      });
+      setMessage("예약을 확정했습니다.");
+    } catch {
+      setMessage("예약 확정 처리에 실패했습니다.");
+    }
   }
 
-  function rejectReservation(reservationId: string) {
-    setState((current) => {
-      const reservation = current.reservations.find((item) => item.id === reservationId);
+  async function rejectReservation(reservationId: string) {
+    try {
+      await rejectReservationAction({
+        supabase,
+        targetReservationId: reservationId,
+        fallback: () => {
+          setState((current) => {
+            const reservation = current.reservations.find((item) => item.id === reservationId);
 
-      return {
-        ...current,
-        reservations: current.reservations.map((item) =>
-          item.id === reservationId ? { ...item, status: "cancelled", cancelledAt: new Date().toISOString() } : item
-        ),
-        slots: current.slots.map((slot) =>
-          reservation?.slotId === slot.id
-            ? { ...slot, status: "open", heldUntil: undefined, reservationId: undefined }
-            : slot
-        )
-      };
-    });
-    setMessage("예약 요청을 거절하고 슬롯을 다시 열었습니다.");
+            return {
+              ...current,
+              reservations: current.reservations.map((item) =>
+                item.id === reservationId ? { ...item, status: "cancelled", cancelledAt: new Date().toISOString() } : item
+              ),
+              slots: current.slots.map((slot) =>
+                reservation?.slotId === slot.id
+                  ? { ...slot, status: "open", heldUntil: undefined, reservationId: undefined }
+                  : slot
+              )
+            };
+          });
+        }
+      });
+      setMessage("예약 요청을 거절하고 슬롯을 다시 열었습니다.");
+    } catch {
+      setMessage("예약 거절 처리에 실패했습니다.");
+    }
   }
 
-  function completeSession(reservationId: string) {
-    setState((current) => {
-      const reservation = current.reservations.find((item) => item.id === reservationId);
-      if (!reservation || reservation.status !== "confirmed") {
-        return current;
-      }
+  async function completeSession(reservationId: string) {
+    try {
+      await completeSessionAction({
+        supabase,
+        targetReservationId: reservationId,
+        fallback: () => {
+          setState((current) => {
+            const reservation = current.reservations.find((item) => item.id === reservationId);
+            if (!reservation || reservation.status !== "confirmed") {
+              return current;
+            }
 
-      const pass = current.passes.find((item) => item.id === reservation.passId);
-      if (!pass || pass.remainingSessions < 1) {
-        return current;
-      }
+            const pass = current.passes.find((item) => item.id === reservation.passId);
+            if (!pass || pass.remainingSessions < 1) {
+              return current;
+            }
 
-      return {
-        ...current,
-        reservations: current.reservations.map((item) =>
-          item.id === reservationId
-            ? { ...item, status: "completed", completedAt: new Date().toISOString() }
-            : item
-        ),
-        passes: current.passes.map((item) =>
-          item.id === pass.id ? { ...item, remainingSessions: item.remainingSessions - 1 } : item
-        ),
-        passEvents: [
-          {
-            id: makeId("event"),
-            passId: pass.id,
-            memberId: pass.memberId,
-            reservationId,
-            eventType: "session_completed",
-            deltaCount: -1,
-            reason: "수업완료",
-            actor: "admin",
-            createdAt: new Date().toISOString()
-          },
-          ...current.passEvents
-        ]
-      };
-    });
-    setMessage("수업완료 처리와 1회 차감을 기록했습니다.");
+            return {
+              ...current,
+              reservations: current.reservations.map((item) =>
+                item.id === reservationId
+                  ? { ...item, status: "completed", completedAt: new Date().toISOString() }
+                  : item
+              ),
+              passes: current.passes.map((item) =>
+                item.id === pass.id ? { ...item, remainingSessions: item.remainingSessions - 1 } : item
+              ),
+              passEvents: [
+                {
+                  id: makeId("event"),
+                  passId: pass.id,
+                  memberId: pass.memberId,
+                  reservationId,
+                  eventType: "session_completed",
+                  deltaCount: -1,
+                  reason: "수업완료",
+                  actor: "admin",
+                  createdAt: new Date().toISOString()
+                },
+                ...current.passEvents
+              ]
+            };
+          });
+        }
+      });
+      setMessage("수업완료 처리와 1회 차감을 기록했습니다.");
+    } catch {
+      setMessage("수업완료 처리에 실패했습니다.");
+    }
   }
 
-  function requestBooking(slotId: string) {
+  async function requestBooking(slotId: string) {
     const pass = activePassFor(memberSessionId);
     if (!pass) {
       setMessage("활성 PT권이 없습니다.");
       return;
     }
 
-    const futureReservations = reservationsFor(memberSessionId).filter((reservation) =>
-      ["requested", "confirmed"].includes(reservation.status)
-    );
+    try {
+      await requestReservationAction({
+        supabase,
+        targetSlotId: slotId,
+        targetPassId: pass.id,
+        fallback: () => {
+          const futureReservations = reservationsFor(memberSessionId).filter((reservation) =>
+            ["requested", "confirmed", "cancel_requested"].includes(reservation.status)
+          );
 
-    const bookingLimit =
-      state.policies.booking.memberFutureBookingLimit === "remaining_sessions"
-        ? pass.remainingSessions
-        : state.policies.booking.memberFutureBookingLimit === "fixed_count"
-          ? state.policies.booking.fixedFutureBookingLimit
-          : Number.POSITIVE_INFINITY;
+          const bookingLimit =
+            state.policies.booking.memberFutureBookingLimit === "remaining_sessions"
+              ? pass.remainingSessions
+              : state.policies.booking.memberFutureBookingLimit === "fixed_count"
+                ? state.policies.booking.fixedFutureBookingLimit
+                : Number.POSITIVE_INFINITY;
 
-    if (futureReservations.length >= bookingLimit) {
-      setMessage("잔여횟수보다 많은 예약은 요청할 수 없습니다.");
-      return;
-    }
-
-    if (!state.policies.booking.allowUnpaidBooking && pass.paymentStatus !== "paid") {
-      setMessage("현재 정책에서는 결제완료 전 예약 요청이 제한됩니다.");
-      return;
-    }
-
-    const reservationId = makeId("reservation");
-    const lockedUntil = addHours(new Date(), state.policies.booking.requestExpiryHours).toISOString();
-
-    setState((current) => ({
-      ...current,
-      slots: current.slots.map((slot) =>
-        slot.id === slotId ? { ...slot, status: "held", heldUntil: lockedUntil, reservationId } : slot
-      ),
-      reservations: [
-        {
-          id: reservationId,
-          memberId: memberSessionId,
-          passId: pass.id,
-          slotId,
-          status: "requested",
-          requestedAt: new Date().toISOString(),
-          lockedUntil,
-          policySnapshot: {
-            requestExpiryHours: current.policies.booking.requestExpiryHours,
-            autoCancelHoursBeforeSession: current.policies.cancellation.autoCancelHoursBeforeSession,
-            lateCancelDefaultDeduct: current.policies.cancellation.lateCancelDefaultDeduct
+          if (futureReservations.length >= bookingLimit) {
+            throw new Error("future booking limit exceeded");
           }
-        },
-        ...current.reservations
-      ]
-    }));
-    setMessage("예약 요청을 보냈습니다. 관장 승인 전까지 슬롯이 잠깁니다.");
-  }
 
-  function requestCancel(reservationId: string) {
-    setState((current) => {
-      const reservation = current.reservations.find((item) => item.id === reservationId);
-      const slot = reservation ? current.slots.find((item) => item.id === reservation.slotId) : undefined;
+          if (!state.policies.booking.allowUnpaidBooking && pass.paymentStatus !== "paid") {
+            throw new Error("payment required before booking");
+          }
 
-      if (!reservation || !slot) {
-        return current;
-      }
+          const reservationId = makeId("reservation");
+          const lockedUntil = addHours(new Date(), state.policies.booking.requestExpiryHours).toISOString();
 
-      const canAutoCancel =
-        hoursUntil(slot.startAt) >= current.policies.cancellation.autoCancelHoursBeforeSession;
-
-      if (canAutoCancel) {
-        return {
-          ...current,
-          reservations: current.reservations.map((item) =>
-            item.id === reservationId
-              ? {
-                  ...item,
-                  status: "cancelled",
-                  cancelledAt: new Date().toISOString(),
-                  cancelReason: "회원 자동취소",
-                  deductOnCancel: false
-                }
-              : item
-          ),
-          slots: current.slots.map((item) =>
-            item.id === slot.id ? { ...item, status: "open", reservationId: undefined } : item
-          )
-        };
-      }
-
-      return {
-        ...current,
-        reservations: current.reservations.map((item) =>
-          item.id === reservationId
-            ? {
-                ...item,
-                status: "cancel_requested",
-                cancelReason: "회원 취소요청",
-                deductOnCancel: current.policies.cancellation.lateCancelDefaultDeduct
-              }
-            : item
-        )
-      };
-    });
-    setMessage("취소 요청을 처리했습니다.");
-  }
-
-  function resolveLateCancel(reservationId: string, deduct: boolean) {
-    setState((current) => {
-      const reservation = current.reservations.find((item) => item.id === reservationId);
-      const pass = reservation ? current.passes.find((item) => item.id === reservation.passId) : undefined;
-
-      if (!reservation || !pass) {
-        return current;
-      }
-
-      return {
-        ...current,
-        reservations: current.reservations.map((item) =>
-          item.id === reservationId
-            ? {
-                ...item,
-                status: "cancelled",
-                cancelledAt: new Date().toISOString(),
-                deductOnCancel: deduct
-              }
-            : item
-        ),
-        slots: current.slots.map((slot) =>
-          slot.id === reservation.slotId ? { ...slot, status: "open", reservationId: undefined } : slot
-        ),
-        passes: deduct
-          ? current.passes.map((item) =>
-              item.id === pass.id
-                ? { ...item, remainingSessions: Math.max(0, item.remainingSessions - 1) }
-                : item
-            )
-          : current.passes,
-        passEvents: deduct
-          ? [
+          setState((current) => ({
+            ...current,
+            slots: current.slots.map((slot) =>
+              slot.id === slotId ? { ...slot, status: "held", heldUntil: lockedUntil, reservationId } : slot
+            ),
+            reservations: [
               {
-                id: makeId("event"),
+                id: reservationId,
+                memberId: memberSessionId,
                 passId: pass.id,
-                memberId: pass.memberId,
-                reservationId,
-                eventType: "late_cancel_deducted",
-                deltaCount: -1,
-                reason: "24시간 이내 취소 차감",
-                actor: "admin",
-                createdAt: new Date().toISOString()
+                slotId,
+                status: "requested",
+                requestedAt: new Date().toISOString(),
+                lockedUntil,
+                policySnapshot: {
+                  requestExpiryHours: current.policies.booking.requestExpiryHours,
+                  autoCancelHoursBeforeSession: current.policies.cancellation.autoCancelHoursBeforeSession,
+                  lateCancelDefaultDeduct: current.policies.cancellation.lateCancelDefaultDeduct
+                }
               },
-              ...current.passEvents
+              ...current.reservations
             ]
-          : current.passEvents
-      };
-    });
-    setMessage(deduct ? "취소 차감을 기록했습니다." : "미차감 예외로 처리했습니다.");
+          }));
+
+          return reservationId;
+        }
+      });
+      setMessage("예약 요청을 보냈습니다. 관장 승인 전까지 슬롯이 잠깁니다.");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "";
+      setMessage(
+        errorMessage === "payment required before booking"
+          ? "현재 정책에서는 결제완료 전 예약 요청이 제한됩니다."
+          : errorMessage === "future booking limit exceeded"
+            ? "잔여횟수보다 많은 예약은 요청할 수 없습니다."
+            : "예약 요청 처리에 실패했습니다."
+      );
+    }
+  }
+
+  async function requestCancel(reservationId: string) {
+    try {
+      await requestReservationCancelAction({
+        supabase,
+        targetReservationId: reservationId,
+        fallback: () => {
+          let result: "auto_cancelled" | "cancel_requested" = "cancel_requested";
+
+          setState((current) => {
+            const reservation = current.reservations.find((item) => item.id === reservationId);
+            const slot = reservation ? current.slots.find((item) => item.id === reservation.slotId) : undefined;
+
+            if (!reservation || !slot) {
+              return current;
+            }
+
+            const canAutoCancel =
+              hoursUntil(slot.startAt) >= current.policies.cancellation.autoCancelHoursBeforeSession;
+
+            if (canAutoCancel) {
+              result = "auto_cancelled";
+
+              return {
+                ...current,
+                reservations: current.reservations.map((item) =>
+                  item.id === reservationId
+                    ? {
+                        ...item,
+                        status: "cancelled",
+                        cancelledAt: new Date().toISOString(),
+                        cancelReason: "회원 자동취소",
+                        deductOnCancel: false
+                      }
+                    : item
+                ),
+                slots: current.slots.map((item) =>
+                  item.id === slot.id ? { ...item, status: "open", heldUntil: undefined, reservationId: undefined } : item
+                )
+              };
+            }
+
+            return {
+              ...current,
+              reservations: current.reservations.map((item) =>
+                item.id === reservationId
+                  ? {
+                      ...item,
+                      status: "cancel_requested",
+                      cancelReason: "회원 취소요청",
+                      deductOnCancel: current.policies.cancellation.lateCancelDefaultDeduct
+                    }
+                  : item
+              )
+            };
+          });
+
+          return result;
+        }
+      });
+      setMessage("취소 요청을 처리했습니다.");
+    } catch {
+      setMessage("취소 요청 처리에 실패했습니다.");
+    }
+  }
+
+  async function resolveLateCancel(reservationId: string, deduct: boolean) {
+    try {
+      await resolveLateCancelAction({
+        supabase,
+        targetReservationId: reservationId,
+        shouldDeduct: deduct,
+        fallback: () => {
+          setState((current) => {
+            const reservation = current.reservations.find((item) => item.id === reservationId);
+            const pass = reservation ? current.passes.find((item) => item.id === reservation.passId) : undefined;
+
+            if (!reservation || !pass) {
+              return current;
+            }
+
+            return {
+              ...current,
+              reservations: current.reservations.map((item) =>
+                item.id === reservationId
+                  ? {
+                      ...item,
+                      status: "cancelled",
+                      cancelledAt: new Date().toISOString(),
+                      deductOnCancel: deduct
+                    }
+                  : item
+              ),
+              slots: current.slots.map((slot) =>
+                slot.id === reservation.slotId
+                  ? { ...slot, status: "open", heldUntil: undefined, reservationId: undefined }
+                  : slot
+              ),
+              passes: deduct
+                ? current.passes.map((item) =>
+                    item.id === pass.id
+                      ? { ...item, remainingSessions: Math.max(0, item.remainingSessions - 1) }
+                      : item
+                  )
+                : current.passes,
+              passEvents: deduct
+                ? [
+                    {
+                      id: makeId("event"),
+                      passId: pass.id,
+                      memberId: pass.memberId,
+                      reservationId,
+                      eventType: "late_cancel_deducted",
+                      deltaCount: -1,
+                      reason: "24시간 이내 취소 차감",
+                      actor: "admin",
+                      createdAt: new Date().toISOString()
+                    },
+                    ...current.passEvents
+                  ]
+                : current.passEvents
+            };
+          });
+        }
+      });
+      setMessage(deduct ? "취소 차감을 기록했습니다." : "미차감 예외로 처리했습니다.");
+    } catch {
+      setMessage("취소 차감 처리에 실패했습니다.");
+    }
   }
 
   function changePaymentStatus(passId: string, nextStatus: PaymentStatus) {
