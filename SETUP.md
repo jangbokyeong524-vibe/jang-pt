@@ -103,12 +103,13 @@ Copy-Item .env.example .env.local
 ```env
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
 주의:
 
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`는 브라우저에 노출될 수 있다.
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`는 브라우저에 노출될 수 있다.
 - `SUPABASE_SERVICE_ROLE_KEY`는 서버 전용이다.
 - `SUPABASE_SERVICE_ROLE_KEY` 이름 앞에 `NEXT_PUBLIC_`를 붙이면 안 된다.
 
@@ -119,31 +120,33 @@ SUPABASE_SERVICE_ROLE_KEY=
 3. Authentication에서 Google provider 설정
 4. SQL Editor에서 `docs/supabase-schema.sql` 실행
 5. `SUPABASE_SERVICE_ROLE_KEY`를 서버 환경변수로 설정
-6. 관리자 이메일 allowlist 계정으로 Google 로그인
+6. `NEXT_PUBLIC_GOOGLE_CLIENT_ID`에 Google Web Client ID를 설정
+7. 관리자 이메일 allowlist 계정으로 Google 로그인
 
-### 6.1 OAuth callback 설정
+### 6.1 Google Identity Services 설정
 
-Google 로그인은 앱의 `/auth/callback` 화면에서 세션을 확인한다.
+Google 로그인은 Supabase OAuth redirect가 아니라 Google Identity Services 버튼으로 ID token을 받은 뒤 `signInWithIdToken`으로 Supabase session을 만든다.
 Kakao provider는 켜져 있지만 1차 앱 UI는 Google 로그인만 노출한다.
 
-Supabase provider 설정에서 확인할 항목:
+Google Cloud Web Client에서 확인할 항목:
 
-- Supabase Kakao provider의 callback URL을 Kakao Developers의 Redirect URI에 등록한다.
-- Google OAuth에는 로컬/배포 redirect URL을 등록한다.
-- Next.js 앱에는 `app/auth/callback/page.tsx` callback 화면이 있다.
-- Supabase Authentication URL 설정의 redirect allow list에 로컬과 배포 callback URL을 등록한다.
+- `Client ID`를 `.env.local`의 `NEXT_PUBLIC_GOOGLE_CLIENT_ID`에 넣는다.
+- `Authorized JavaScript origins`에 로컬/배포 origin을 등록한다.
+- Supabase Google provider에도 같은 Client ID와 Client Secret을 설정한다.
 
 로컬 예시:
 
 ```text
-http://localhost:3000/auth/callback
-http://127.0.0.1:3000/auth/callback
+http://localhost:3000
+http://127.0.0.1:3000
+http://localhost:3004
+http://127.0.0.1:3004
 ```
 
 배포 예시:
 
 ```text
-https://배포도메인/auth/callback
+https://배포도메인
 ```
 
 관리자 등록은 allowlist 이메일로 Google 로그인하면 `/api/auth/bootstrap-admin`에서 `admin_users`에 자동 반영한다.

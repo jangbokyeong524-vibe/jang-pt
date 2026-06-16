@@ -15,8 +15,9 @@ import {
   X
 } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import Script from "next/script";
 import {
   approveReservationAction,
   completeSessionAction,
@@ -26,7 +27,7 @@ import {
   resolveLateCancelAction
 } from "@/lib/reservation-actions";
 import { initialState } from "@/lib/seed-data";
-import { createBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabase";
+import { createBrowserSupabaseClient, getGoogleClientId, signInWithGoogle } from "@/lib/supabase";
 import type {
   AppState,
   AvailabilitySlot,
@@ -50,6 +51,22 @@ import {
 type AdminTab = "home" | "week" | "members" | "settings";
 type MemberTab = "home" | "booking" | "history";
 type AuthStatus = "checking" | "signedOut" | "admin" | "member" | "memberPending" | "demo" | "error";
+type GoogleCredentialResponse = {
+  credential?: string;
+};
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (options: { client_id: string; callback: (response: GoogleCredentialResponse) => void }) => void;
+          renderButton: (element: HTMLElement, options: { theme: "outline"; size: "large"; text: "signin_with"; logo_alignment: "left" }) => void;
+        };
+      };
+    };
+  }
+}
 type SettingsSection = "root" | "products" | "policies" | "templates" | "csv";
 type PolicySection = "booking" | "cancellation" | "extension" | "renewal" | null;
 type CsvDatasetKey =
@@ -110,6 +127,7 @@ export function PtManagementApp() {
   const [authUserId, setAuthUserId] = useState("");
   const [authError, setAuthError] = useState("");
   const [linkPhone, setLinkPhone] = useState("");
+  const googleClientId = useMemo(() => getGoogleClientId(), []);
   const [mode, setMode] = useState<"admin" | "member">("admin");
   const [adminTab, setAdminTab] = useState<AdminTab>("home");
   const [memberTab, setMemberTab] = useState<MemberTab>("home");
@@ -233,11 +251,11 @@ export function PtManagementApp() {
     return state.members.find((member) => member.id === memberId)?.name ?? "알 수 없음";
   }
 
-  async function handleGoogleLogin() {
+  async function handleGoogleCredential(credential: string) {
     setAuthError("");
-    setMessage("Google 로그인으로 이동합니다.");
+    setMessage("Google 계정으로 로그인 중입니다.");
 
-    const { error } = await signInWithGoogle(`${window.location.origin}/auth/callback`);
+    const { error } = await signInWithGoogle(credential);
 
     if (error) {
       setAuthStatus("error");
@@ -835,7 +853,8 @@ export function PtManagementApp() {
     return (
       <LoginPanel
         error={authStatus === "error" ? authError : ""}
-        onGoogleLogin={handleGoogleLogin}
+        googleClientId={googleClientId}
+        onGoogleCredential={handleGoogleCredential}
       />
     );
   }
@@ -2404,22 +2423,48 @@ function AuthStatePanel({ title, body }: { title: string; body: string }) {
 
 function LoginPanel({
   error,
-  onGoogleLogin
+  googleClientId,
+  onGoogleCredential
 }: {
   error: string;
-  onGoogleLogin: () => void;
+  googleClientId: string;
+  onGoogleCredential: (credential: string) => void;
 }) {
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const [googleScriptReady, setGoogleScriptReady] = useState(false);
+  const googleError = googleClientId ? error : "NEXT_PUBLIC_GOOGLE_CLIENT_ID가 설정되지 않았습니다.";
+
+  useEffect(() => {
+    if (!googleClientId || !googleScriptReady || !googleButtonRef.current || !window.google) {
+      return;
+    }
+
+    googleButtonRef.current.innerHTML = "";
+    window.google.accounts.id.initialize({
+      client_id: googleClientId,
+      callback: (response) => {
+        if (response.credential) {
+          onGoogleCredential(response.credential);
+        }
+      }
+    });
+    window.google.accounts.id.renderButton(googleButtonRef.current, {
+      theme: "outline",
+      size: "large",
+      text: "signin_with",
+      logo_alignment: "left"
+    });
+  }, [googleClientId, googleScriptReady, onGoogleCredential]);
+
   return (
     <main className="app-shell auth-shell">
+      <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" onLoad={() => setGoogleScriptReady(true)} />
       <section className="auth-panel">
         <p className="eyebrow">강동무에타이장</p>
         <h1>PT 운영 관리 로그인</h1>
         <p>관리자는 Google 계정으로 로그인해 운영 화면을 열 수 있습니다.</p>
-        {error ? <div className="auth-error">{error}</div> : null}
-        <button className="primary-button" onClick={onGoogleLogin} type="button">
-          <LogIn size={16} />
-          Google로 로그인
-        </button>
+        {googleError ? <div className="auth-error">{googleError}</div> : null}
+        <div className="google-signin-slot" ref={googleButtonRef} />
       </section>
     </main>
   );

@@ -24,7 +24,8 @@ phase: supabase-auth-role-routing
 - MVP excludes group classes, general gym attendance, lockers, product sales, full accounting dashboards, automated Kakao sending, PG payments, BOX POS API integration, and VitaminCRM automation.
 - Local demo UI still uses `lib/seed-data.ts` for most operational data.
 - Supabase project is connected, Google/Kakao providers are enabled, and reservation RPCs are visible through PostgREST.
-- Google login, `/auth/callback`, admin email allowlist bootstrap, and pending member link request creation are wired.
+- Google Identity Services login, admin email allowlist bootstrap, and pending member link request creation are wired.
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is required for the Google button; local `.env.local` is configured.
 - Admin allowlist lives in `lib/auth-config.ts`; bootstrap writes `admin_users` through server-only `lib/supabase-server.ts`.
 - Reservation request/approve/reject/cancel/late-cancel/complete operations are represented by `lib/reservation-actions.ts`.
 - When Supabase env is missing, reservation actions keep using local demo state fallback behavior.
@@ -48,7 +49,7 @@ phase: supabase-auth-role-routing
 
 ## Next Actions
 
-1. Verify real Google login in the browser against the Supabase redirect allow list and confirm allowlist accounts appear in `admin_users`.
+1. Verify real Google Identity Services login in the browser and confirm allowlist accounts appear in `admin_users`.
 2. Wire DB reads/refetch after reservation/payment/extension RPC calls.
 3. Design and wire MVP-required payment status and extension approval RPCs, including payment/extension/pass event history.
 4. Connect Kakao login UI if Kakao member login remains required for MVP.
@@ -60,6 +61,7 @@ phase: supabase-auth-role-routing
 
 ## Last Verified
 
+- 2026-06-16: Google Identity Services + Supabase `signInWithIdToken` contract verified with `npm run check:layout` and `npm run build`.
 - 2026-06-16: Supabase Auth role routing verified with `npm run check:layout`, `npm run build`, and HTTP smoke checks for `/`, `/auth/callback`, and `/api/auth/bootstrap-admin`.
 - 2026-06-16: `codex/week-layer-cleanup` merged into `main` and verified with `npm run build` before push to `origin/main`.
 - 2026-06-15: Payment/extension MVP criteria alignment verified with consistency search, `git diff --check`, `npm run check:layout`, and `npm run build`.

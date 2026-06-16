@@ -918,6 +918,10 @@ h3 {
   line-height: 1.45;
 }
 
+.google-signin-slot {
+  min-height: 44px;
+}
+
 .small-button.danger {
   color: #fff;
   background: var(--danger);

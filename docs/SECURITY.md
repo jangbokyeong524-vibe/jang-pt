@@ -2,7 +2,7 @@
 
 ## 0. 현재 적용 상태
 
-- Supabase Auth callback과 관리자/회원 role routing 1차 연결은 적용되어 있다.
+- Google Identity Services와 `signInWithIdToken` 기반 관리자/회원 role routing 1차 연결은 적용되어 있다.
 - 현재 화면의 운영 데이터는 아직 로컬 데모 데이터가 중심이므로 전체 Supabase RLS read/refetch는 다음 연결 단계에서 검증한다.
 - 운영 배포 전에는 인증, RLS, 서버 전용 함수, service role key 분리가 실제 코드와 배포 환경에서 검증되어야 한다.
 
@@ -16,7 +16,8 @@
 
 ## 2. 인증과 회원 연결
 
-- 회원은 Kakao/Google 로그인 후 전화번호를 직접 입력한다.
+- 회원은 Google 로그인 후 전화번호를 직접 입력한다.
+- Google 로그인은 Supabase OAuth redirect 대신 Google Identity Services ID token을 Supabase에 전달한다.
 - 입력 전화번호는 `normalized_phone` 형태로 정규화해 비교한다.
 - 회원 연결은 `member_link_requests`에 `pending` 상태로 생성된다.
 - 관장이 기존 회원과 매칭해 승인하면 `approved` 상태가 된다.

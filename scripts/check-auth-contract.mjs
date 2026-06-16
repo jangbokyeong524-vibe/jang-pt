@@ -29,7 +29,9 @@ for (const email of [
 assert(authConfig.includes("isAllowedAdminEmail"), "Missing isAllowedAdminEmail helper");
 assert(supabaseServer.includes("server-only"), "Service client helper must be server-only");
 assert(supabaseServer.includes("createServiceSupabaseClient"), "Missing server-only service client helper");
-assert(supabase.includes("signInWithOAuth"), "Missing OAuth login helper");
+assert(supabase.includes("signInWithIdToken"), "Google login must use signInWithIdToken");
+assert(!supabase.includes("signInWithOAuth"), "Google login must not use Supabase OAuth redirect");
+assert(supabase.includes("NEXT_PUBLIC_GOOGLE_CLIENT_ID"), "Missing public Google Client ID env helper");
 assert(callbackPage.includes("AuthCallbackPage"), "Missing auth callback client page");
 assert(supabaseServer.includes("SUPABASE_SERVICE_ROLE_KEY"), "Service client must use SUPABASE_SERVICE_ROLE_KEY");
 assert(bootstrapRoute.includes("createServiceSupabaseClient"), "Bootstrap route must use the service client helper");
@@ -37,5 +39,8 @@ assert(bootstrapRoute.includes("admin_users"), "Bootstrap route must write admin
 assert(app.includes("authStatus"), "App must track authStatus");
 assert(app.includes("signOut"), "App must provide sign out");
 assert(app.includes("Google"), "App must expose Google login");
+assert(app.includes("accounts.google.com/gsi/client"), "App must load Google Identity Services");
+assert(app.includes("google.accounts.id.renderButton"), "App must render the Google Identity Services button");
+assert(app.includes("credential"), "App must handle Google Identity credential tokens");
 
 console.log("Auth contract check passed.");
