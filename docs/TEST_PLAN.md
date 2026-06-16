@@ -30,7 +30,9 @@
 
 운영 MVP 완료는 Supabase Auth/DB/RLS/RPC 연결 후 실제 DB 기준으로 검증한다.
 
-- Kakao/Google Auth callback과 관리자/회원 role routing이 연결된다.
+- Google Auth callback과 관리자/회원 role routing이 연결된다.
+- allowlist 관리자 로그인은 `admin_users` bootstrap 후 `is_admin()`을 통과한다.
+- 비관리자 로그인은 승인 전 회원 연결 요청 화면으로 이동한다.
 - 회원 승인 전/후 RLS가 적용되어 회원은 본인 데이터만 볼 수 있다.
 - 회원 연결, 예약, 취소, 수업완료, 당일취소 차감은 DB 트랜잭션과 RPC로 처리된다.
 - RPC 성공 후 화면은 회원, 예약, PT권, 결제, 이력 데이터를 DB에서 다시 읽는다.

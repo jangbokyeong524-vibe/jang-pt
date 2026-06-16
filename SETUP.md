@@ -118,17 +118,19 @@ SUPABASE_SERVICE_ROLE_KEY=
 2. Authentication에서 Kakao provider 설정
 3. Authentication에서 Google provider 설정
 4. SQL Editor에서 `docs/supabase-schema.sql` 실행
-5. 최초 관리자 계정을 `admin_users`에 등록
+5. `SUPABASE_SERVICE_ROLE_KEY`를 서버 환경변수로 설정
+6. 관리자 이메일 allowlist 계정으로 Google 로그인
 
 ### 6.1 OAuth callback 설정
 
-Kakao/Google 로그인은 앱에 인증 callback route가 구현된 뒤 연결한다.
+Google 로그인은 앱의 `/auth/callback` 화면에서 세션을 확인한다.
+Kakao provider는 켜져 있지만 1차 앱 UI는 Google 로그인만 노출한다.
 
 Supabase provider 설정에서 확인할 항목:
 
 - Supabase Kakao provider의 callback URL을 Kakao Developers의 Redirect URI에 등록한다.
 - Google OAuth에는 로컬/배포 redirect URL을 등록한다.
-- Next.js에서 PKCE/cookie 기반 인증을 쓰면 `app/auth/callback/route.ts` 같은 callback route가 필요하다.
+- Next.js 앱에는 `app/auth/callback/page.tsx` callback 화면이 있다.
 - Supabase Authentication URL 설정의 redirect allow list에 로컬과 배포 callback URL을 등록한다.
 
 로컬 예시:
@@ -144,14 +146,8 @@ http://127.0.0.1:3000/auth/callback
 https://배포도메인/auth/callback
 ```
 
-최초 관리자 등록 예시:
-
-```sql
-insert into public.admin_users (auth_user_id, display_name)
-values ('여기에_auth.users.id', '관장');
-```
-
-`auth.users.id`는 Supabase Auth Users 화면에서 확인한다.
+관리자 등록은 allowlist 이메일로 Google 로그인하면 `/api/auth/bootstrap-admin`에서 `admin_users`에 자동 반영한다.
+현재 allowlist는 `lib/auth-config.ts`를 기준으로 한다.
 
 ## 7. Vercel 배포
 

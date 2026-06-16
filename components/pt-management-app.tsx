@@ -14,8 +14,9 @@ import {
   Users,
   X
 } from "lucide-react";
-import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import type { FormEvent, ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 import {
   approveReservationAction,
   completeSessionAction,
@@ -25,7 +26,7 @@ import {
   resolveLateCancelAction
 } from "@/lib/reservation-actions";
 import { initialState } from "@/lib/seed-data";
-import { createBrowserSupabaseClient } from "@/lib/supabase";
+import { createBrowserSupabaseClient, signInWithGoogle } from "@/lib/supabase";
 import type {
   AppState,
   AvailabilitySlot,
@@ -48,6 +49,7 @@ import {
 
 type AdminTab = "home" | "week" | "members" | "settings";
 type MemberTab = "home" | "booking" | "history";
+type AuthStatus = "checking" | "signedOut" | "admin" | "member" | "memberPending" | "demo" | "error";
 type SettingsSection = "root" | "products" | "policies" | "templates" | "csv";
 type PolicySection = "booking" | "cancellation" | "extension" | "renewal" | null;
 type CsvDatasetKey =
@@ -103,6 +105,11 @@ const csvDatasetOptions: Array<{ key: CsvDatasetKey; label: string }> = [
 
 export function PtManagementApp() {
   const [state, setState] = useState<AppState>(initialState);
+  const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authUserId, setAuthUserId] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [linkPhone, setLinkPhone] = useState("");
   const [mode, setMode] = useState<"admin" | "member">("admin");
   const [adminTab, setAdminTab] = useState<AdminTab>("home");
   const [memberTab, setMemberTab] = useState<MemberTab>("home");
@@ -117,6 +124,103 @@ export function PtManagementApp() {
   const tasks = useMemo(() => buildTasks(state), [state]);
   const weekDays = useMemo(() => buildSevenDayWeek(state.slots), [state.slots]);
 
+  useEffect(() => {
+    if (!supabase) {
+      setAuthStatus("demo");
+      setMessage("Supabase 환경변수가 없어 로컬 데모 모드로 실행 중입니다.");
+      return;
+    }
+
+    const authClient = supabase;
+    let active = true;
+
+    async function resolveSession(session: Session | null) {
+      if (!active) {
+        return;
+      }
+
+      if (!session) {
+        setAuthStatus("signedOut");
+        setAuthEmail("");
+        setAuthUserId("");
+        setMessage("Google 로그인 후 관리자/회원 화면을 확인할 수 있습니다.");
+        return;
+      }
+
+      const email = session.user.email ?? "";
+      setAuthEmail(email);
+      setAuthUserId(session.user.id);
+
+      try {
+        const bootstrapResponse = await fetch("/api/auth/bootstrap-admin", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`
+          }
+        });
+
+        if (!bootstrapResponse.ok) {
+          throw new Error("관리자 권한 초기화에 실패했습니다.");
+        }
+
+        const { data: isAdmin, error: adminError } = await authClient.rpc("is_admin");
+
+        if (adminError) {
+          throw adminError;
+        }
+
+        if (isAdmin) {
+          setAuthStatus("admin");
+          setMode("admin");
+          setMessage(`${email} 관리자 계정으로 로그인했습니다.`);
+          return;
+        }
+
+        const { data: approvedMemberId, error: memberError } = await authClient.rpc("approved_member_id");
+
+        if (memberError) {
+          throw memberError;
+        }
+
+        if (approvedMemberId) {
+          setAuthStatus("member");
+          setMode("member");
+          setMemberSessionId(String(approvedMemberId));
+          setMessage(`${email} 승인 회원으로 로그인했습니다.`);
+          return;
+        }
+
+        setAuthStatus("memberPending");
+        setMode("member");
+        setMessage("회원 연결 승인 전입니다. 전화번호로 연결 요청을 남겨주세요.");
+      } catch (error) {
+        setAuthStatus("error");
+        setAuthError(error instanceof Error ? error.message : "로그인 상태 확인에 실패했습니다.");
+      }
+    }
+
+    authClient.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        setAuthStatus("error");
+        setAuthError(error.message);
+        return;
+      }
+
+      void resolveSession(data.session);
+    });
+
+    const {
+      data: { subscription }
+    } = authClient.auth.onAuthStateChange((_event, session) => {
+      void resolveSession(session);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
   function activePassFor(memberId: string) {
     return state.passes.find((pass) => pass.memberId === memberId && pass.active);
   }
@@ -127,6 +231,64 @@ export function PtManagementApp() {
 
   function memberName(memberId: string) {
     return state.members.find((member) => member.id === memberId)?.name ?? "알 수 없음";
+  }
+
+  async function handleGoogleLogin() {
+    setAuthError("");
+    setMessage("Google 로그인으로 이동합니다.");
+
+    const { error } = await signInWithGoogle(`${window.location.origin}/auth/callback`);
+
+    if (error) {
+      setAuthStatus("error");
+      setAuthError(error.message);
+    }
+  }
+
+  async function handleSignOut() {
+    if (!supabase) {
+      return;
+    }
+
+    await supabase.auth.signOut();
+    setAuthStatus("signedOut");
+    setAuthEmail("");
+    setAuthUserId("");
+    setMessage("로그아웃했습니다.");
+  }
+
+  async function submitMemberLinkRequest(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!supabase || !authUserId) {
+      setAuthError("로그인 세션을 확인할 수 없습니다.");
+      return;
+    }
+
+    const normalizedPhone = normalizePhone(linkPhone);
+
+    if (normalizedPhone.length < 8) {
+      setAuthError("전화번호를 다시 확인해 주세요.");
+      return;
+    }
+
+    const { error } = await supabase.from("member_link_requests").insert({
+      auth_user_id: authUserId,
+      auth_provider: "google",
+      display_name: authEmail || "회원",
+      input_phone: linkPhone,
+      normalized_phone: normalizedPhone,
+      status: "pending"
+    });
+
+    if (error) {
+      setAuthError(error.message);
+      return;
+    }
+
+    setAuthError("");
+    setLinkPhone("");
+    setMessage("회원 연결 요청을 보냈습니다. 관리자가 승인하면 회원 화면을 사용할 수 있습니다.");
   }
 
   function slotFor(slotId: string) {
@@ -665,6 +827,32 @@ export function PtManagementApp() {
     }));
   }
 
+  if (authStatus === "checking") {
+    return <AuthStatePanel title="로그인 상태 확인 중" body="Supabase 세션과 권한을 확인하고 있습니다." />;
+  }
+
+  if (authStatus === "signedOut" || authStatus === "error") {
+    return (
+      <LoginPanel
+        error={authStatus === "error" ? authError : ""}
+        onGoogleLogin={handleGoogleLogin}
+      />
+    );
+  }
+
+  if (authStatus === "memberPending") {
+    return (
+      <MemberLinkPanel
+        email={authEmail}
+        error={authError}
+        linkPhone={linkPhone}
+        onPhoneChange={setLinkPhone}
+        onSubmit={submitMemberLinkRequest}
+        onSignOut={handleSignOut}
+      />
+    );
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -672,16 +860,25 @@ export function PtManagementApp() {
           <p className="eyebrow">강동무에타이장</p>
           <h1>PT 운영 관리</h1>
         </div>
-        <div className="topbar-actions" role="tablist" aria-label="화면 전환">
-          <button className={mode === "admin" ? "segmented active" : "segmented"} onClick={() => setMode("admin")}>
-            <ClipboardList size={16} />
-            관리자
-          </button>
-          <button className={mode === "member" ? "segmented active" : "segmented"} onClick={() => setMode("member")}>
-            <LogIn size={16} />
-            회원
-          </button>
-        </div>
+        {authStatus === "demo" ? (
+          <div className="topbar-actions" role="tablist" aria-label="화면 전환">
+            <button className={mode === "admin" ? "segmented active" : "segmented"} onClick={() => setMode("admin")}>
+              <ClipboardList size={16} />
+              관리자
+            </button>
+            <button className={mode === "member" ? "segmented active" : "segmented"} onClick={() => setMode("member")}>
+              <LogIn size={16} />
+              회원
+            </button>
+          </div>
+        ) : (
+          <div className="auth-identity">
+            <span>{authEmail}</span>
+            <button className="ghost-button" onClick={handleSignOut} type="button">
+              로그아웃
+            </button>
+          </div>
+        )}
       </header>
 
       <section className="status-line" aria-live="polite">
@@ -2186,6 +2383,89 @@ function shouldRenew(pass: PtPass, state: AppState) {
   return (
     pass.remainingSessions <= state.policies.renewal.remainingSessionsThreshold ||
     expiresInDays <= state.policies.renewal.daysBeforeExpiryThreshold
+  );
+}
+
+function normalizePhone(phone: string) {
+  return phone.replace(/\D/g, "");
+}
+
+function AuthStatePanel({ title, body }: { title: string; body: string }) {
+  return (
+    <main className="app-shell auth-shell">
+      <section className="auth-panel">
+        <p className="eyebrow">강동무에타이장</p>
+        <h1>{title}</h1>
+        <p>{body}</p>
+      </section>
+    </main>
+  );
+}
+
+function LoginPanel({
+  error,
+  onGoogleLogin
+}: {
+  error: string;
+  onGoogleLogin: () => void;
+}) {
+  return (
+    <main className="app-shell auth-shell">
+      <section className="auth-panel">
+        <p className="eyebrow">강동무에타이장</p>
+        <h1>PT 운영 관리 로그인</h1>
+        <p>관리자는 Google 계정으로 로그인해 운영 화면을 열 수 있습니다.</p>
+        {error ? <div className="auth-error">{error}</div> : null}
+        <button className="primary-button" onClick={onGoogleLogin} type="button">
+          <LogIn size={16} />
+          Google로 로그인
+        </button>
+      </section>
+    </main>
+  );
+}
+
+function MemberLinkPanel({
+  email,
+  error,
+  linkPhone,
+  onPhoneChange,
+  onSubmit,
+  onSignOut
+}: {
+  email: string;
+  error: string;
+  linkPhone: string;
+  onPhoneChange: (phone: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSignOut: () => void;
+}) {
+  return (
+    <main className="app-shell auth-shell">
+      <section className="auth-panel">
+        <p className="eyebrow">회원 연결 요청</p>
+        <h1>승인 대기</h1>
+        <p>{email} 계정은 아직 등록된 회원과 연결되지 않았습니다.</p>
+        <form className="auth-form" onSubmit={onSubmit}>
+          <label>
+            전화번호
+            <input
+              inputMode="tel"
+              onChange={(event) => onPhoneChange(event.target.value)}
+              placeholder="010-0000-0000"
+              value={linkPhone}
+            />
+          </label>
+          {error ? <div className="auth-error">{error}</div> : null}
+          <button className="primary-button" type="submit">
+            연결 요청
+          </button>
+        </form>
+        <button className="ghost-button" onClick={onSignOut} type="button">
+          다른 계정으로 로그인
+        </button>
+      </section>
+    </main>
   );
 }
 

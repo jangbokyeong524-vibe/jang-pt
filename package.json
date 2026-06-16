@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "check:layout": "node scripts/check-layout-layering.mjs && node scripts/check-supabase-rpc.mjs",
+    "check:layout": "node scripts/check-layout-layering.mjs && node scripts/check-supabase-rpc.mjs && node scripts/check-auth-contract.mjs",
     "start": "next start",
     "lint": "next lint"
   },

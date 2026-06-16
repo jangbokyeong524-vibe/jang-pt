@@ -2,8 +2,8 @@
 
 ## 0. 현재 적용 상태
 
-- 이 문서는 Supabase 연결 후의 목표 보안 기준이다.
-- 현재 화면은 로컬 데모 데이터로 동작하므로 Supabase RLS가 아직 런타임에서 적용되지 않는다.
+- Supabase Auth callback과 관리자/회원 role routing 1차 연결은 적용되어 있다.
+- 현재 화면의 운영 데이터는 아직 로컬 데모 데이터가 중심이므로 전체 Supabase RLS read/refetch는 다음 연결 단계에서 검증한다.
 - 운영 배포 전에는 인증, RLS, 서버 전용 함수, service role key 분리가 실제 코드와 배포 환경에서 검증되어야 한다.
 
 ## 1. 기본 원칙
@@ -27,7 +27,8 @@
 
 - 관리자 여부는 `admin_users.auth_user_id = auth.uid()` 기준으로 판단한다.
 - 관리자 권한을 `members.role` 같은 회원 테이블 값에 의존하지 않는다.
-- 최초 관리자 등록은 Supabase SQL Editor에서 수동으로 수행한다.
+- 최초 관리자 등록은 `lib/auth-config.ts`의 이메일 allowlist 계정이 Google 로그인하면 서버 route가 `admin_users`에 자동 반영한다.
+- allowlist 판정은 bootstrap 용도이며, 실제 관리자 권한은 계속 `admin_users`와 `is_admin()` RPC로 확인한다.
 - 관리자 계정이 바뀌면 `admin_users`를 직접 점검한다.
 
 ## 4. Supabase RLS 정책
@@ -148,7 +149,7 @@
 ## 11. 보안 점검 체크리스트
 
 - `.env.local`이 Git에 포함되지 않았는가
-- `SUPABASE_SERVICE_ROLE_KEY`가 브라우저 번들에 포함되지 않았는가
+- `SUPABASE_SERVICE_ROLE_KEY`가 `lib/supabase-server.ts` 같은 server-only 경계 밖으로 나가지 않는가
 - 모든 운영 테이블에 RLS가 켜져 있는가
 - 회원 승인 전 데이터 접근이 차단되는가
 - 승인 회원이 다른 회원 데이터를 볼 수 없는가
