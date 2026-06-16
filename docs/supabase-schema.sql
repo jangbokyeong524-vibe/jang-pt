@@ -819,66 +819,80 @@ alter table public.payment_events enable row level security;
 alter table public.extension_requests enable row level security;
 alter table public.notifications enable row level security;
 
+drop policy if exists "admins can manage admin users" on public.admin_users;
 create policy "admins can manage admin users"
   on public.admin_users for all
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "admins can manage members" on public.members;
 create policy "admins can manage members"
   on public.members for all
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "approved members can read own member row" on public.members;
 create policy "approved members can read own member row"
   on public.members for select
   using (id = public.approved_member_id());
 
+drop policy if exists "users can create own link request" on public.member_link_requests;
 create policy "users can create own link request"
   on public.member_link_requests for insert
   with check (auth_user_id = auth.uid());
 
+drop policy if exists "users can read own link request" on public.member_link_requests;
 create policy "users can read own link request"
   on public.member_link_requests for select
   using (auth_user_id = auth.uid() or public.is_admin());
 
+drop policy if exists "admins can update link requests" on public.member_link_requests;
 create policy "admins can update link requests"
   on public.member_link_requests for update
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "admins manage policy settings" on public.policy_settings;
 create policy "admins manage policy settings"
   on public.policy_settings for all
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "admins manage pass products" on public.pt_pass_products;
 create policy "admins manage pass products"
   on public.pt_pass_products for all
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "members read active pass products" on public.pt_pass_products;
 create policy "members read active pass products"
   on public.pt_pass_products for select
   using (active = true);
 
+drop policy if exists "admins manage passes" on public.pt_passes;
 create policy "admins manage passes"
   on public.pt_passes for all
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "members read own passes" on public.pt_passes;
 create policy "members read own passes"
   on public.pt_passes for select
   using (member_id = public.approved_member_id());
 
+drop policy if exists "admins manage availability templates" on public.availability_templates;
 create policy "admins manage availability templates"
   on public.availability_templates for all
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "admins manage slots" on public.availability_slots;
 create policy "admins manage slots"
   on public.availability_slots for all
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "members read visible slots" on public.availability_slots;
 create policy "members read visible slots"
   on public.availability_slots for select
   using (
@@ -891,38 +905,46 @@ create policy "members read visible slots"
     )
   );
 
+drop policy if exists "admins manage reservations" on public.reservations;
 create policy "admins manage reservations"
   on public.reservations for all
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "members read own reservations" on public.reservations;
 create policy "members read own reservations"
   on public.reservations for select
   using (member_id = public.approved_member_id());
 
+drop policy if exists "admins manage pass events" on public.pass_events;
 create policy "admins manage pass events"
   on public.pass_events for all
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "members read own pass events" on public.pass_events;
 create policy "members read own pass events"
   on public.pass_events for select
   using (member_id = public.approved_member_id());
 
+drop policy if exists "admins manage payments" on public.payments;
 create policy "admins manage payments"
   on public.payments for all
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "members read own payments" on public.payments;
 create policy "members read own payments"
   on public.payments for select
   using (member_id = public.approved_member_id());
 
+drop policy if exists "admins manage payment events" on public.payment_events;
 create policy "admins manage payment events"
   on public.payment_events for all
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "members read own payment events" on public.payment_events;
 create policy "members read own payment events"
   on public.payment_events for select
   using (
@@ -934,15 +956,18 @@ create policy "members read own payment events"
     )
   );
 
+drop policy if exists "admins manage extension requests" on public.extension_requests;
 create policy "admins manage extension requests"
   on public.extension_requests for all
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "members read own extension requests" on public.extension_requests;
 create policy "members read own extension requests"
   on public.extension_requests for select
   using (member_id = public.approved_member_id());
 
+drop policy if exists "members create own extension requests" on public.extension_requests;
 create policy "members create own extension requests"
   on public.extension_requests for insert
   with check (
@@ -950,11 +975,13 @@ create policy "members create own extension requests"
     and status = 'requested'
   );
 
+drop policy if exists "admins manage notifications" on public.notifications;
 create policy "admins manage notifications"
   on public.notifications for all
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists "members read own notifications" on public.notifications;
 create policy "members read own notifications"
   on public.notifications for select
   using (member_id = public.approved_member_id());
@@ -1006,3 +1033,19 @@ where not exists (
   where name = 'default'
     and active = true
 );
+
+grant usage on schema public to anon, authenticated, service_role;
+grant select, insert, update, delete on all tables in schema public to authenticated, service_role;
+grant usage, select on all sequences in schema public to authenticated, service_role;
+grant execute on all functions in schema public to authenticated, service_role;
+
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to authenticated, service_role;
+
+alter default privileges in schema public
+  grant usage, select on sequences to authenticated, service_role;
+
+alter default privileges in schema public
+  grant execute on functions to authenticated, service_role;
+
+notify pgrst, 'reload schema';
