@@ -19,6 +19,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import Script from "next/script";
 import {
+  approveExistingMemberLinkAction,
+  approveNewMemberLinkAction,
+  fetchMemberLinkReviewDataAction,
+  fetchOwnMemberLinkRequestsAction,
+  rejectMemberLinkAction,
+  submitMemberLinkRequestAction
+} from "@/lib/member-link-actions";
+import {
   approveReservationAction,
   completeSessionAction,
   rejectReservationAction,
@@ -32,6 +40,7 @@ import type {
   AppState,
   AvailabilitySlot,
   Member,
+  MemberLinkRequest,
   PassEvent,
   Payment,
   PaymentStatus,
@@ -97,7 +106,10 @@ const statusLabels: Record<string, string> = {
   unpaid: "미납",
   boxpos_requested: "결제요청",
   paid: "결제완료",
-  refunded: "환불"
+  refunded: "환불",
+  pending: "승인대기",
+  approved: "승인",
+  rejected: "반려"
 };
 
 const paymentOrder: PaymentStatus[] = [
@@ -127,6 +139,7 @@ export function PtManagementApp() {
   const [authEmail, setAuthEmail] = useState("");
   const [authUserId, setAuthUserId] = useState("");
   const [authError, setAuthError] = useState("");
+  const [linkName, setLinkName] = useState("");
   const [linkPhone, setLinkPhone] = useState("");
   const googleClientId = useMemo(() => getGoogleClientId(), []);
   const [mode, setMode] = useState<"admin" | "member">("admin");
@@ -142,6 +155,47 @@ export function PtManagementApp() {
 
   const tasks = useMemo(() => buildTasks(state), [state]);
   const weekDays = useMemo(() => buildSevenDayWeek(state.slots), [state.slots]);
+  const currentMemberLinkRequest = useMemo(
+    () =>
+      state.memberLinkRequests.find(
+        (request) => request.authUserId === authUserId && (request.status === "pending" || request.status === "approved")
+      ) ??
+      state.memberLinkRequests.find((request) => request.authUserId === authUserId && request.status === "rejected"),
+    [authUserId, state.memberLinkRequests]
+  );
+
+  async function refreshMemberLinkReviewData() {
+    const reviewData = await fetchMemberLinkReviewDataAction({
+      supabase,
+      fallback: () => ({
+        members: state.members,
+        memberLinkRequests: state.memberLinkRequests
+      })
+    });
+
+    setState((current) => ({
+      ...current,
+      members: reviewData.members.length > 0 ? reviewData.members : current.members,
+      memberLinkRequests: reviewData.memberLinkRequests
+    }));
+
+    setSelectedMemberId((currentId) =>
+      reviewData.members.some((member) => member.id === currentId) ? currentId : reviewData.members[0]?.id ?? currentId
+    );
+  }
+
+  async function refreshOwnMemberLinkRequests(userId: string) {
+    const requests = await fetchOwnMemberLinkRequestsAction({
+      supabase,
+      authUserId: userId,
+      fallback: () => state.memberLinkRequests.filter((request) => request.authUserId === userId)
+    });
+
+    setState((current) => ({
+      ...current,
+      memberLinkRequests: mergeMemberLinkRequests(current.memberLinkRequests, requests, userId)
+    }));
+  }
 
   useEffect(() => {
     if (!supabase) {
@@ -189,6 +243,7 @@ export function PtManagementApp() {
         }
 
         if (isAdmin) {
+          await refreshMemberLinkReviewData();
           setAuthStatus("admin");
           setMode("admin");
           setMessage(`${email} 관리자 계정으로 로그인했습니다.`);
@@ -211,6 +266,7 @@ export function PtManagementApp() {
 
         setAuthStatus("memberPending");
         setMode("member");
+        await refreshOwnMemberLinkRequests(session.user.id);
         setMessage("회원 연결 승인 전입니다. 전화번호로 연결 요청을 남겨주세요.");
       } catch (error) {
         setAuthStatus("error");
@@ -284,46 +340,167 @@ export function PtManagementApp() {
       return;
     }
 
+    const displayName = linkName.trim();
     const normalizedPhone = normalizePhone(linkPhone);
+
+    if (displayName.length < 2) {
+      setAuthError("이름을 입력해 주세요.");
+      return;
+    }
 
     if (normalizedPhone.length < 8) {
       setAuthError("전화번호를 다시 확인해 주세요.");
       return;
     }
 
-    const { error } = await supabase.from("member_link_requests").insert({
-      auth_user_id: authUserId,
-      auth_provider: "google",
-      display_name: authEmail || "회원",
-      input_phone: linkPhone,
-      normalized_phone: normalizedPhone,
-      status: "pending"
-    });
+    const blockingRequest = state.memberLinkRequests.find(
+      (request) => request.authUserId === authUserId && (request.status === "pending" || request.status === "approved")
+    );
 
-    if (error) {
-      setAuthError(error.message);
+    if (blockingRequest) {
+      setAuthError("");
+      setMessage(blockingRequest.status === "approved" ? "이미 승인된 회원 연결 요청이 있습니다." : "이미 승인 대기 중인 요청이 있습니다.");
       return;
     }
 
-    setAuthError("");
-    setLinkPhone("");
-    setMessage("회원 연결 요청을 보냈습니다. 관리자가 승인하면 회원 화면을 사용할 수 있습니다.");
+    try {
+      const request = await submitMemberLinkRequestAction({
+        supabase,
+        authUserId,
+        displayName,
+        inputPhone: linkPhone,
+        normalizedPhone,
+        fallback: () => ({
+          id: makeId("link"),
+          authUserId,
+          memberId: null,
+          authProvider: "google",
+          displayName,
+          inputPhone: linkPhone,
+          normalizedPhone,
+          status: "pending",
+          requestedAt: new Date().toISOString()
+        })
+      });
+
+      setState((current) => ({
+        ...current,
+        memberLinkRequests: mergeMemberLinkRequests(current.memberLinkRequests, [request], authUserId)
+      }));
+      setAuthError("");
+      setLinkName("");
+      setLinkPhone("");
+      setMessage("회원 연결 요청을 보냈습니다. 관리자가 승인하면 회원 화면을 사용할 수 있습니다.");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "회원 연결 요청에 실패했습니다.");
+    }
   }
 
   function slotFor(slotId: string) {
     return state.slots.find((slot) => slot.id === slotId);
   }
 
-  function approveLinkRequest(requestId: string) {
-    setState((current) => ({
-      ...current,
-      memberLinkRequests: current.memberLinkRequests.map((request) =>
-        request.id === requestId
-          ? { ...request, status: "approved", approvedAt: new Date().toISOString() }
-          : request
-      )
-    }));
-    setMessage("회원 연결을 승인했습니다.");
+  async function approveExistingMemberLink(requestId: string, memberId: string) {
+    try {
+      await approveExistingMemberLinkAction({
+        supabase,
+        requestId,
+        memberId,
+        fallback: () => {
+          setState((current) => ({
+            ...current,
+            memberLinkRequests: current.memberLinkRequests.map((request) =>
+              request.id === requestId
+                ? { ...request, memberId, status: "approved", approvedAt: new Date().toISOString() }
+                : request
+            )
+          }));
+        }
+      });
+
+      if (supabase) {
+        await refreshMemberLinkReviewData();
+      }
+
+      setMessage("기존 회원에 연결 승인했습니다.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "회원 연결 승인에 실패했습니다.");
+    }
+  }
+
+  async function approveNewMemberLink(requestId: string) {
+    const request = state.memberLinkRequests.find((item) => item.id === requestId);
+
+    if (!request) {
+      setMessage("회원 연결 요청을 찾을 수 없습니다.");
+      return;
+    }
+
+    try {
+      await approveNewMemberLinkAction({
+        supabase,
+        request,
+        fallback: () => {
+          const existingMember = state.members.find((member) => member.normalizedPhone === request.normalizedPhone);
+          const memberId = existingMember?.id ?? makeId("member");
+
+          setState((current) => ({
+            ...current,
+            members: existingMember
+              ? current.members
+              : [
+                  {
+                    id: memberId,
+                    name: request.displayName,
+                    phone: request.inputPhone,
+                    normalizedPhone: request.normalizedPhone,
+                    status: "active",
+                    memo: ""
+                  },
+                  ...current.members
+                ],
+            memberLinkRequests: current.memberLinkRequests.map((item) =>
+              item.id === requestId
+                ? { ...item, memberId, status: "approved", approvedAt: new Date().toISOString() }
+                : item
+            )
+          }));
+        }
+      });
+
+      if (supabase) {
+        await refreshMemberLinkReviewData();
+      }
+
+      setMessage("신규 회원을 생성하고 연결 승인했습니다. PT권은 회원 상세에서 별도로 등록하세요.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "신규 회원 생성 승인에 실패했습니다.");
+    }
+  }
+
+  async function rejectMemberLink(requestId: string) {
+    try {
+      await rejectMemberLinkAction({
+        supabase,
+        requestId,
+        fallback: () => {
+          setState((current) => ({
+            ...current,
+            memberLinkRequests: current.memberLinkRequests.map((request) =>
+              request.id === requestId ? { ...request, status: "rejected", rejectedAt: new Date().toISOString() } : request
+            )
+          }));
+        }
+      });
+
+      if (supabase) {
+        await refreshMemberLinkReviewData();
+      }
+
+      setMessage("회원 연결 요청을 반려했습니다.");
+    } catch {
+      setMessage("회원 연결 요청 반려에 실패했습니다.");
+    }
   }
 
   async function approveReservation(reservationId: string) {
@@ -863,9 +1040,12 @@ export function PtManagementApp() {
   if (authStatus === "memberPending") {
     return (
       <MemberLinkPanel
+        currentRequest={currentMemberLinkRequest}
         email={authEmail}
         error={authError}
+        linkName={linkName}
         linkPhone={linkPhone}
+        onNameChange={setLinkName}
         onPhoneChange={setLinkPhone}
         onSubmit={submitMemberLinkRequest}
         onSignOut={handleSignOut}
@@ -940,7 +1120,9 @@ export function PtManagementApp() {
                 slotFor={slotFor}
                 addPass={addPass}
                 changePaymentStatus={changePaymentStatus}
-                approveLinkRequest={approveLinkRequest}
+                approveExistingMemberLink={approveExistingMemberLink}
+                approveNewMemberLink={approveNewMemberLink}
+                rejectMemberLink={rejectMemberLink}
                 approveExtension={approveExtension}
               />
             )}
@@ -1367,7 +1549,9 @@ function MembersView({
   slotFor,
   addPass,
   changePaymentStatus,
-  approveLinkRequest,
+  approveExistingMemberLink,
+  approveNewMemberLink,
+  rejectMemberLink,
   approveExtension
 }: {
   state: AppState;
@@ -1379,7 +1563,9 @@ function MembersView({
   slotFor: (slotId: string) => AvailabilitySlot | undefined;
   addPass: (memberId: string, productId: string) => void;
   changePaymentStatus: (passId: string, nextStatus: PaymentStatus) => void;
-  approveLinkRequest: (requestId: string) => void;
+  approveExistingMemberLink: (requestId: string, memberId: string) => void;
+  approveNewMemberLink: (requestId: string) => void;
+  rejectMemberLink: (requestId: string) => void;
   approveExtension: (requestId: string) => void;
 }) {
   return (
@@ -1474,14 +1660,32 @@ function MembersView({
           <div className="table-list">
             {state.memberLinkRequests
               .filter((request) => request.status === "pending")
-              .map((request) => (
-                <div className="table-row" key={request.id}>
-                  <span>{request.displayName} / {request.inputPhone}</span>
-                  <button className="small-button" onClick={() => approveLinkRequest(request.id)}>
-                    연결 승인
-                  </button>
-                </div>
-              ))}
+              .map((request) => {
+                const matchedMember = state.members.find((member) => member.normalizedPhone === request.normalizedPhone);
+
+                return (
+                  <div className="table-row member-link-review-row" key={request.id}>
+                    <span>
+                      <strong>{request.displayName}</strong> / {request.inputPhone}
+                      <small>{matchedMember ? `자동 매칭: ${matchedMember.name}` : "자동 매칭 후보 없음"}</small>
+                    </span>
+                    <div className="row-actions">
+                      {matchedMember ? (
+                        <button className="small-button" onClick={() => approveExistingMemberLink(request.id, matchedMember.id)}>
+                          기존 회원 연결
+                        </button>
+                      ) : (
+                        <button className="small-button" onClick={() => approveNewMemberLink(request.id)}>
+                          신규 회원 생성 후 승인
+                        </button>
+                      )}
+                      <button className="small-button ghost" onClick={() => rejectMemberLink(request.id)}>
+                        반려
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             {state.extensionRequests
               .filter((request) => request.status === "requested")
               .map((request) => (
@@ -2876,6 +3080,19 @@ function normalizePhone(phone: string) {
   return phone.replace(/\D/g, "");
 }
 
+function mergeMemberLinkRequests(
+  currentRequests: MemberLinkRequest[],
+  nextRequests: MemberLinkRequest[],
+  authUserId: string
+) {
+  const nextIds = new Set(nextRequests.map((request) => request.id));
+  const unrelatedRequests = currentRequests.filter(
+    (request) => request.authUserId !== authUserId && !nextIds.has(request.id)
+  );
+
+  return [...nextRequests, ...unrelatedRequests];
+}
+
 function AuthStatePanel({ title, body }: { title: string; body: string }) {
   return (
     <main className="app-shell auth-shell">
@@ -2938,41 +3155,71 @@ function LoginPanel({
 }
 
 function MemberLinkPanel({
+  currentRequest,
   email,
   error,
+  linkName,
   linkPhone,
+  onNameChange,
   onPhoneChange,
   onSubmit,
   onSignOut
 }: {
+  currentRequest?: MemberLinkRequest;
   email: string;
   error: string;
+  linkName: string;
   linkPhone: string;
+  onNameChange: (name: string) => void;
   onPhoneChange: (phone: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onSignOut: () => void;
 }) {
+  const requestBlocksForm = currentRequest?.status === "pending" || currentRequest?.status === "approved";
+
   return (
     <main className="app-shell auth-shell">
       <section className="auth-panel">
         <p className="eyebrow">회원 연결 요청</p>
         <h1>승인 대기</h1>
         <p>{email} 계정은 아직 등록된 회원과 연결되지 않았습니다.</p>
-        <form className="auth-form" onSubmit={onSubmit}>
-          <label>
-            전화번호
-            <input
-              inputMode="tel"
-              onChange={(event) => onPhoneChange(event.target.value)}
-              placeholder="010-0000-0000"
-              value={linkPhone}
-            />
-          </label>
-          {error ? <div className="auth-error">{error}</div> : null}
-          <button className="primary-button" type="submit">
-            연결 요청
-          </button>
-        </form>
+        {currentRequest ? (
+          <div className="link-request-status">
+            <StatusPill value={currentRequest.status} />
+            <strong>{currentRequest.displayName}</strong>
+            <span>{currentRequest.inputPhone}</span>
+            {currentRequest.status === "pending" && <small>관장 승인 후 회원 화면으로 진입할 수 있습니다.</small>}
+            {currentRequest.status === "approved" && <small>승인이 완료되었습니다. 새로고침 후 회원 화면이 열립니다.</small>}
+            {currentRequest.status === "rejected" && <small>요청이 반려되었습니다. 이름과 전화번호를 확인해 다시 요청할 수 있습니다.</small>}
+          </div>
+        ) : null}
+        {!requestBlocksForm && (
+          <form className="auth-form" onSubmit={onSubmit}>
+            <label>
+              이름
+              <input
+                autoComplete="name"
+                onChange={(event) => onNameChange(event.target.value)}
+                placeholder="홍길동"
+                value={linkName}
+              />
+            </label>
+            <label>
+              전화번호
+              <input
+                inputMode="tel"
+                onChange={(event) => onPhoneChange(event.target.value)}
+                placeholder="010-0000-0000"
+                value={linkPhone}
+              />
+            </label>
+            {error ? <div className="auth-error">{error}</div> : null}
+            <button className="primary-button" type="submit">
+              연결 요청
+            </button>
+          </form>
+        )}
+        {requestBlocksForm && error ? <div className="auth-error">{error}</div> : null}
         <button className="ghost-button" onClick={onSignOut} type="button">
           다른 계정으로 로그인
         </button>

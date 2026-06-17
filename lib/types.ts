@@ -73,6 +73,7 @@ export type Member = {
 
 export type MemberLinkRequest = {
   id: string;
+  authUserId?: string;
   memberId: string | null;
   authProvider: "kakao" | "google";
   displayName: string;
@@ -81,6 +82,7 @@ export type MemberLinkRequest = {
   status: LinkStatus;
   requestedAt: string;
   approvedAt?: string;
+  rejectedAt?: string;
 };
 
 export type PtPass = {

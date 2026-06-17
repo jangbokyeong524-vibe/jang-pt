@@ -1099,8 +1099,38 @@ h3 {
   line-height: 1.45;
 }
 
+.link-request-status {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--row-radius);
+  background: var(--background);
+}
+
+.link-request-status strong,
+.link-request-status span,
+.link-request-status small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.link-request-status small,
+.member-link-review-row small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .google-signin-slot {
   min-height: 44px;
+}
+
+.small-button.ghost {
+  color: var(--muted);
 }
 
 .small-button.danger {

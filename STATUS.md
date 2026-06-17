@@ -2,7 +2,7 @@
 
 updated: 2026-06-17
 mode: codex-resume-index
-phase: supabase-auth-role-routing
+phase: member-link-approval-flow
 
 ## Rules
 
@@ -25,6 +25,10 @@ phase: supabase-auth-role-routing
 - Local demo UI still uses `lib/seed-data.ts` for most operational data.
 - Supabase project is connected, Google/Kakao providers are enabled, and reservation RPCs are visible through PostgREST.
 - Google Identity Services login, admin email allowlist bootstrap, and pending member link request creation are wired.
+- Member link approval is wired through `lib/member-link-actions.ts`.
+- Members now request linking with name and phone; pending/approved requests hide duplicate request entry and rejected requests can be retried.
+- Admin member screen reads Supabase members/link requests, shows pending requests, and can approve to an existing phone match, create a new active member then approve, or reject.
+- New member approval creates only the `members` row; PT passes remain manually registered from member detail.
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is required for the Google button; local `.env.local` is configured.
 - Admin allowlist lives in `lib/auth-config.ts`; bootstrap writes `admin_users` through server-only `lib/supabase-server.ts`.
 - Reservation request/approve/reject/cancel/late-cancel/complete operations are represented by `lib/reservation-actions.ts`.
@@ -33,7 +37,7 @@ phase: supabase-auth-role-routing
 - Member direct `reservations insert/update` RLS policies are removed from the schema draft; members should use reservation RPCs.
 - `npm run check:layout` now includes static Supabase reservation RPC contract checks.
 - `docs/DATA_MODEL.md`, `docs/SECURITY.md`, and `docs/TEST_PLAN.md` describe the reservation RPC state transitions and verification criteria.
-- DB reads/refetch after RPC, payment status RPC, extension approval RPC, and Kakao login UI are still not wired.
+- Full operational DB reads/refetch after reservation RPC, payment status RPC, extension approval RPC, and Kakao login UI are still not wired.
 - Local demo review and operating MVP completion are now treated as separate gates in `docs/TEST_PLAN.md`.
 - Member extension requests and admin extension approval are MVP-required scope, not post-MVP expansion.
 - README, SECURITY, DATA_MODEL, TEST_PLAN, OPERATIONS, and schema draft now align on payment/extension server-boundary requirements.
@@ -50,7 +54,7 @@ phase: supabase-auth-role-routing
 
 ## Next Actions
 
-1. Verify real Google Identity Services login in the browser and confirm allowlist accounts appear in `admin_users`.
+1. Manually verify the live Supabase member-link flow with a non-admin Google account and an admin account.
 2. Wire DB reads/refetch after reservation/payment/extension RPC calls.
 3. Design and wire MVP-required payment status and extension approval RPCs, including payment/extension/pass event history.
 4. Connect Kakao login UI if Kakao member login remains required for MVP.
@@ -62,6 +66,7 @@ phase: supabase-auth-role-routing
 
 ## Last Verified
 
+- 2026-06-17: Member link approval static contract verified RED with `npm run check:layout` failing on missing `lib/member-link-actions.ts`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-17: Monthly calendar to selected-day time-card schedule UX verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-16: Google Identity Services + Supabase `signInWithIdToken` contract verified with `npm run check:layout` and `npm run build`.
 - 2026-06-16: Supabase Auth role routing verified with `npm run check:layout`, `npm run build`, and HTTP smoke checks for `/`, `/auth/callback`, and `/api/auth/bootstrap-admin`.

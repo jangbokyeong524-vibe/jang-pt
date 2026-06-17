@@ -55,12 +55,21 @@ availability_templates
 - `auth_user_id`: 로그인 사용자 ID
 - `member_id`: 연결될 기존 회원 ID
 - `auth_provider`: `kakao` 또는 `google`
+- `display_name`: 회원이 입력한 이름
 - `input_phone`: 회원이 입력한 전화번호
 - `normalized_phone`: 숫자만 남긴 전화번호
 - `status`: `pending`, `approved`, `rejected`
 - `approved_by`, `approved_at`: 승인 관리자와 승인 시간
 
 전화번호는 본인인증 결과가 아니라 매칭 힌트다.
+
+관리자는 앱의 회원 메뉴에서 `pending` 요청을 처리한다.
+
+- `normalized_phone`이 기존 `members.normalized_phone`과 같으면 기존 회원에 연결하고 `member_id`, `status = approved`, `approved_at`을 기록한다.
+- 매칭 후보가 없으면 `members`에 `display_name`, `input_phone`, `normalized_phone`, `status = active`, `memo = ""`로 신규 회원을 만든 뒤 그 회원 ID로 승인한다.
+- 신규 회원 생성 승인 시 PT권은 만들지 않는다. PT권은 회원 상세 화면에서 별도 등록한다.
+- 반려는 `status = rejected`, `rejected_at`을 기록한다.
+- 같은 Google 계정에 `pending` 또는 `approved` 요청이 있으면 추가 요청 대신 현재 상태를 보여준다.
 
 ## 4. 회원 테이블
 

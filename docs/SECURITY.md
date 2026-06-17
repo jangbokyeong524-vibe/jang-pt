@@ -16,11 +16,15 @@
 
 ## 2. 인증과 회원 연결
 
-- 회원은 Google 로그인 후 전화번호를 직접 입력한다.
+- 회원은 Google 로그인 후 이름과 전화번호를 직접 입력한다.
 - Google 로그인은 Supabase OAuth redirect 대신 Google Identity Services ID token을 Supabase에 전달한다.
 - 입력 전화번호는 `normalized_phone` 형태로 정규화해 비교한다.
 - 회원 연결은 `member_link_requests`에 `pending` 상태로 생성된다.
-- 관장이 기존 회원과 매칭해 승인하면 `approved` 상태가 된다.
+- 관장이 기존 회원과 매칭해 승인하면 `member_id`와 `approved_at`이 기록되고 `approved` 상태가 된다.
+- 기존 회원 매칭이 없으면 관장이 앱에서 신규 회원을 생성한 뒤 승인할 수 있다. 이때 PT권은 자동 발급하지 않는다.
+- 회원은 직접 `members` row를 만들 수 없고, 승인 전에는 `member_link_requests`만 생성/조회할 수 있다.
+- 관장은 부정확한 요청을 `rejected`로 반려할 수 있으며, 반려된 회원은 이름과 전화번호를 확인해 다시 요청할 수 있다.
+- 같은 Google 계정에 `pending` 또는 `approved` 요청이 있으면 앱은 추가 요청 폼 대신 현재 상태를 보여줘 중복 요청을 막는다.
 - 승인 전 회원은 PT권, 결제, 예약 정보를 볼 수 없다.
 - 승인된 회원은 본인 `member_id`에 연결된 데이터만 볼 수 있다.
 
