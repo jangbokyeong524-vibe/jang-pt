@@ -1,6 +1,6 @@
 # STATUS
 
-updated: 2026-06-16
+updated: 2026-06-17
 mode: codex-resume-index
 phase: supabase-auth-role-routing
 
@@ -40,6 +40,7 @@ phase: supabase-auth-role-routing
 - `docs/supabase-schema.sql` now includes `pass_events.extension_request_id` and a unique `extension_added`-per-request index for the target extension approval design.
 - Admin/member screens use bottom tabs in the local demo UI.
 - Admin tabs are `홈 / 주간 / 회원 / 설정`; the old `CRM` tab and copy summary view are removed.
+- Admin `주간` and member `예약` detail screens now use a monthly date calendar followed by selected-day time cards.
 - Admin bottom tabs use an even 4-column grid so icon/label alignment fits the current 4-tab IA.
 - Admin `설정` now opens to a menu list: `PT 상품`, `운영 정책`, `안내 문구`, `CSV 내보내기`.
 - `운영 정책` has a second menu layer for `예약`, `취소`, `연장`, `재등록`.
@@ -61,6 +62,7 @@ phase: supabase-auth-role-routing
 
 ## Last Verified
 
+- 2026-06-17: Monthly calendar to selected-day time-card schedule UX verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-16: Google Identity Services + Supabase `signInWithIdToken` contract verified with `npm run check:layout` and `npm run build`.
 - 2026-06-16: Supabase Auth role routing verified with `npm run check:layout`, `npm run build`, and HTTP smoke checks for `/`, `/auth/callback`, and `/api/auth/bootstrap-admin`.
 - 2026-06-16: `codex/week-layer-cleanup` merged into `main` and verified with `npm run build` before push to `origin/main`.

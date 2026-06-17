@@ -36,7 +36,8 @@ import type {
   Payment,
   PaymentStatus,
   PtPass,
-  Reservation
+  Reservation,
+  ExtensionRequest
 } from "@/lib/types";
 import {
   addDays,
@@ -971,6 +972,7 @@ export function PtManagementApp() {
           reservations={reservationsFor(loggedInMember.id)}
           passEvents={state.passEvents.filter((event) => event.memberId === loggedInMember.id)}
           payments={state.payments.filter((payment) => payment.memberId === loggedInMember.id)}
+          extensionRequests={state.extensionRequests.filter((request) => request.memberId === loggedInMember.id)}
           weekDays={weekDays}
           requestBooking={requestBooking}
           requestCancel={requestCancel}
@@ -1083,8 +1085,8 @@ function ScheduleView({
     <section className="week-screen">
       <div className="panel-heading">
         <div>
-          <p className="eyebrow">주간 시간표</p>
-          <h2>7일 예약 현황</h2>
+          <p className="eyebrow">예약 일정</p>
+          <h2>날짜별 예약 현황</h2>
         </div>
         <CalendarDays size={20} />
       </div>
@@ -1120,94 +1122,196 @@ function WeekSchedule({
   resolveLateCancel?: (reservationId: string, deduct: boolean) => void;
   summary?: boolean;
 }) {
-  const rows = buildWeekTimeRows(weekDays);
-  const firstSlotId = firstChronologicalSlot(weekDays)?.id;
-  const [selectedSlotId, setSelectedSlotId] = useState(firstSlotId);
-  const selectedSlot = state.slots.find((slot) => slot.id === selectedSlotId) ?? state.slots.find((slot) => slot.id === firstSlotId);
-  const selectedReservation = selectedSlot
-    ? state.reservations.find((reservation) => reservation.slotId === selectedSlot.id)
-    : undefined;
-
   if (summary) {
     return <WeekSummary weekDays={weekDays} state={state} memberName={memberName} />;
   }
 
   return (
-    <>
-      <div className="week-matrix" role="grid" aria-label="7일 예약 현황">
-        <div className="week-matrix-header" role="row">
-          <span className="week-time-label">시간</span>
-          {weekDays.map((group) => (
-            <div className="week-day-heading" role="columnheader" key={group.day}>
-              <strong>{weekdayLabel(group.day)}</strong>
-              <span>{monthDayLabel(group.day)}</span>
-            </div>
-          ))}
-        </div>
+    <MonthlySchedulePicker
+      slots={state.slots}
+      reservations={state.reservations}
+      ariaLabel="예약 일정 달력"
+      emptyLabel="해당 날짜에 등록된 시간이 없습니다."
+      renderSlot={(slot, reservation) => {
+        const status = reservation?.status ?? slot.status;
+        const label = reservation ? memberName(reservation.memberId) : slot.status === "blocked" ? "운영 차단" : "예약 가능";
 
-        {rows.map((row) => (
-          <div className="week-time-row" role="row" key={row.time}>
-            <span className="week-time-label">{row.time}</span>
-            {row.slots.map((slot, index) => {
-              const reservation = slot ? state.reservations.find((item) => item.slotId === slot.id) : undefined;
-              const status = reservation?.status ?? slot?.status ?? "empty";
-              const label = reservation ? memberName(reservation.memberId) : slot?.status === "blocked" ? "차단" : slot ? "가능" : "없음";
-
-              return (
-                <button
-                  className={`week-cell ${status} ${selectedSlot?.id === slot?.id ? "selected" : ""}`}
-                  type="button"
-                  role="gridcell"
-                  key={`${row.time}-${weekDays[index]?.day ?? index}`}
-                  onClick={() => slot && setSelectedSlotId(slot.id)}
-                  disabled={!slot}
-                  aria-label={`${weekDays[index] ? weekdayLabel(weekDays[index].day) : ""} ${row.time} ${label}`}
-                >
-                  <span className="week-cell-status">{shortStatusLabel(status)}</span>
-                  <span className="week-cell-detail">{label}</span>
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-
-      <section className="week-selection-panel" aria-label="선택 슬롯 상세">
-        {selectedSlot ? (
-          <>
-            <div>
-              <p className="eyebrow">선택 슬롯</p>
-              <h3>{formatDateTime(selectedSlot.startAt)}</h3>
-              <p>{selectedReservation ? memberName(selectedReservation.memberId) : selectedSlot.status === "blocked" ? "운영 차단" : "예약 가능"}</p>
-            </div>
-            <StatusPill value={selectedReservation?.status ?? selectedSlot.status} />
-            {selectedReservation?.status === "requested" && approveReservation && rejectReservation && (
+        return (
+          <ScheduleSlotCard
+            key={slot.id}
+            slot={slot}
+            status={status}
+            title={label}
+            description={reservation ? statusLabels[reservation.status] : statusLabels[slot.status]}
+          >
+            {reservation?.status === "requested" && approveReservation && rejectReservation && (
               <div className="row-actions">
-                <IconButton label="승인" onClick={() => approveReservation(selectedReservation.id)} icon={<Check size={16} />} />
-                <IconButton label="거절" onClick={() => rejectReservation(selectedReservation.id)} icon={<X size={16} />} />
+                <IconButton label="승인" onClick={() => approveReservation(reservation.id)} icon={<Check size={16} />} />
+                <IconButton label="거절" onClick={() => rejectReservation(reservation.id)} icon={<X size={16} />} />
               </div>
             )}
-            {selectedReservation?.status === "confirmed" && completeSession && (
+            {reservation?.status === "confirmed" && completeSession && (
               <div className="row-actions">
-                <IconButton label="완료" onClick={() => completeSession(selectedReservation.id)} icon={<Check size={16} />} />
+                <IconButton label="완료" onClick={() => completeSession(reservation.id)} icon={<Check size={16} />} />
               </div>
             )}
-            {selectedReservation?.status === "cancel_requested" && resolveLateCancel && (
+            {reservation?.status === "cancel_requested" && resolveLateCancel && (
               <div className="row-actions">
-                <button className="small-button danger" onClick={() => resolveLateCancel(selectedReservation.id, true)}>
+                <button className="small-button danger" onClick={() => resolveLateCancel(reservation.id, true)}>
                   차감
                 </button>
-                <button className="small-button" onClick={() => resolveLateCancel(selectedReservation.id, false)}>
+                <button className="small-button" onClick={() => resolveLateCancel(reservation.id, false)}>
                   미차감
                 </button>
               </div>
             )}
-          </>
+          </ScheduleSlotCard>
+        );
+      }}
+    />
+  );
+}
+
+function MonthlySchedulePicker({
+  slots,
+  reservations,
+  ariaLabel,
+  emptyLabel,
+  renderSlot
+}: {
+  slots: AvailabilitySlot[];
+  reservations: Reservation[];
+  ariaLabel: string;
+  emptyLabel: string;
+  renderSlot: (slot: AvailabilitySlot, reservation?: Reservation) => ReactNode;
+}) {
+  const sortedSlots = useMemo(() => [...slots].sort((a, b) => a.startAt.localeCompare(b.startAt)), [slots]);
+  const initialDay = scheduleInitialDay(sortedSlots);
+  const [selectedDay, setSelectedDay] = useState(initialDay);
+  const [visibleMonth, setVisibleMonth] = useState(monthKey(initialDay));
+
+  const slotsByDay = useMemo(() => {
+    const groups = new Map<string, AvailabilitySlot[]>();
+
+    for (const slot of sortedSlots) {
+      const day = slotDay(slot);
+      groups.set(day, [...(groups.get(day) ?? []), slot]);
+    }
+
+    return groups;
+  }, [sortedSlots]);
+  const reservationsBySlotId = useMemo(
+    () => new Map(reservations.map((reservation) => [reservation.slotId, reservation])),
+    [reservations]
+  );
+
+  useEffect(() => {
+    if (sortedSlots.length === 0) {
+      const today = todayKey();
+      setSelectedDay(today);
+      setVisibleMonth(monthKey(today));
+      return;
+    }
+
+    setSelectedDay((current) => (sortedSlots.some((slot) => slotDay(slot) === current) ? current : scheduleInitialDay(sortedSlots)));
+  }, [sortedSlots]);
+
+  const calendarDays = useMemo(() => buildMonthlyCalendarDays(visibleMonth), [visibleMonth]);
+  const selectedSlots = slotsByDay.get(selectedDay) ?? [];
+
+  function moveMonth(delta: number) {
+    const currentMonth = dayDate(`${visibleMonth}-01`);
+    currentMonth.setUTCMonth(currentMonth.getUTCMonth() + delta);
+    const nextMonth = monthKey(currentMonth.toISOString().slice(0, 10));
+    setVisibleMonth(nextMonth);
+
+    const firstSlotInMonth = sortedSlots.find((slot) => slotDay(slot).startsWith(nextMonth));
+    setSelectedDay(firstSlotInMonth ? slotDay(firstSlotInMonth) : `${nextMonth}-01`);
+  }
+
+  return (
+    <div className="schedule-picker">
+      <section className="schedule-calendar" aria-label={ariaLabel}>
+        <div className="schedule-calendar-header">
+          <button className="icon-button" type="button" onClick={() => moveMonth(-1)} aria-label="이전 달">
+            <span aria-hidden="true">‹</span>
+          </button>
+          <strong>{monthLabel(visibleMonth)}</strong>
+          <button className="icon-button" type="button" onClick={() => moveMonth(1)} aria-label="다음 달">
+            <span aria-hidden="true">›</span>
+          </button>
+        </div>
+        <div className="schedule-weekdays" aria-hidden="true">
+          {["월", "화", "수", "목", "금", "토", "일"].map((label) => (
+            <span key={label}>{label}</span>
+          ))}
+        </div>
+        <div className="schedule-date-grid">
+          {calendarDays.map((day) => {
+            const daySlots = slotsByDay.get(day) ?? [];
+            const disabled = daySlots.length === 0;
+            const dayStatus = scheduleDayStatus(daySlots, reservationsBySlotId);
+
+            return (
+              <button
+                className={`schedule-date-button ${dayStatus} ${selectedDay === day ? "selected" : ""} ${monthKey(day) === visibleMonth ? "" : "outside"}`}
+                type="button"
+                key={day}
+                onClick={() => setSelectedDay(day)}
+                disabled={disabled}
+                aria-pressed={selectedDay === day}
+              >
+                <span>{dayDate(day).getUTCDate()}</span>
+                {daySlots.length > 0 && <i>{daySlots.length}</i>}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="schedule-time-list" aria-label={`${formatDateForSchedule(selectedDay)} 시간 목록`}>
+        <div className="schedule-time-heading">
+          <div>
+            <p className="eyebrow">선택 날짜</p>
+            <h3>{formatDateForSchedule(selectedDay)}</h3>
+          </div>
+          <StatusPill value={selectedSlots.length > 0 ? "open" : "blocked"} label={`${selectedSlots.length}개`} />
+        </div>
+        {selectedSlots.length > 0 ? (
+          selectedSlots.map((slot) => renderSlot(slot, reservationsBySlotId.get(slot.id)))
         ) : (
-          <div className="empty-state">선택할 슬롯이 없습니다.</div>
+          <div className="empty-state">{emptyLabel}</div>
         )}
       </section>
-    </>
+    </div>
+  );
+}
+
+function ScheduleSlotCard({
+  slot,
+  status,
+  title,
+  description,
+  children
+}: {
+  slot: AvailabilitySlot;
+  status: string;
+  title: string;
+  description: string;
+  children?: ReactNode;
+}) {
+  return (
+    <article className={`schedule-slot-card ${status}`}>
+      <div className="schedule-slot-main">
+        <div>
+          <p className="eyebrow">{timeRangeLabel(slot)}</p>
+          <h3>{title}</h3>
+          <p>{description}</p>
+        </div>
+        <StatusPill value={status} />
+      </div>
+      {children}
+    </article>
   );
 }
 
@@ -1800,6 +1904,7 @@ function MemberView({
   reservations,
   passEvents,
   payments,
+  extensionRequests,
   weekDays,
   requestBooking,
   requestCancel,
@@ -1815,12 +1920,14 @@ function MemberView({
   reservations: Reservation[];
   passEvents: PassEvent[];
   payments: Payment[];
+  extensionRequests: ExtensionRequest[];
   weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>;
   requestBooking: (slotId: string) => void;
   requestCancel: (reservationId: string) => void;
   slotFor: (slotId: string) => AvailabilitySlot | undefined;
 }) {
-  const approvedLink = true;
+  const linkRequest = state.memberLinkRequests.find((request) => request.memberId === memberSessionId);
+  const approvedLink = !linkRequest || linkRequest.status === "approved";
 
   return (
     <section className="member-app app-surface-flat with-bottom-nav">
@@ -1832,7 +1939,10 @@ function MemberView({
             </option>
           ))}
         </select>
-        <StatusPill value={approvedLink ? "approved" : "pending"} label={approvedLink ? "승인됨" : "승인대기"} />
+        <StatusPill
+          value={approvedLink ? "approved" : linkRequest?.status ?? "pending"}
+          label={approvedLink ? "승인됨" : "승인대기"}
+        />
       </div>
 
       {memberTab === "home" && (
@@ -1841,6 +1951,8 @@ function MemberView({
           member={member}
           activePass={activePass}
           reservations={reservations}
+          payments={payments}
+          extensionRequests={extensionRequests}
           requestCancel={requestCancel}
           slotFor={slotFor}
         />
@@ -1849,6 +1961,9 @@ function MemberView({
       {memberTab === "booking" && (
         <MemberBookingView
           state={state}
+          member={member}
+          activePass={activePass}
+          reservations={reservations}
           weekDays={weekDays}
           requestBooking={requestBooking}
         />
@@ -1856,10 +1971,13 @@ function MemberView({
 
       {memberTab === "history" && (
         <MemberHistoryView
+          state={state}
+          member={member}
           activePass={activePass}
           reservations={reservations}
           passEvents={passEvents}
           payments={payments}
+          extensionRequests={extensionRequests}
           slotFor={slotFor}
         />
       )}
@@ -1878,6 +1996,8 @@ function MemberHomeView({
   member,
   activePass,
   reservations,
+  payments,
+  extensionRequests,
   requestCancel,
   slotFor
 }: {
@@ -1885,16 +2005,40 @@ function MemberHomeView({
   member: Member;
   activePass?: PtPass;
   reservations: Reservation[];
+  payments: Payment[];
+  extensionRequests: ExtensionRequest[];
   requestCancel: (reservationId: string) => void;
   slotFor: (slotId: string) => AvailabilitySlot | undefined;
 }) {
-  const upcomingReservations = reservations.filter((reservation) =>
-    ["requested", "confirmed", "cancel_requested"].includes(reservation.status)
-  );
-  const nextReservation = upcomingReservations
+  const upcomingReservations = reservations
+    .filter((reservation) => ["requested", "confirmed", "cancel_requested"].includes(reservation.status))
     .map((reservation) => ({ reservation, slot: slotFor(reservation.slotId) }))
     .filter((item): item is { reservation: Reservation; slot: AvailabilitySlot } => Boolean(item.slot))
-    .sort((a, b) => a.slot.startAt.localeCompare(b.slot.startAt))[0];
+    .sort((a, b) => a.slot.startAt.localeCompare(b.slot.startAt));
+  const nextReservation = upcomingReservations[0];
+  const recentPayment = [...payments].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+  const latestExtensionRequest = [...extensionRequests].sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))[0];
+  const renewalNeeded = activePass ? shouldRenew(activePass, state) : false;
+  const homeAlerts = [
+    activePass ? buildPaymentAlert(activePass.paymentStatus, recentPayment) : null,
+    renewalNeeded && activePass
+      ? {
+          tone: "warn" as const,
+          title: "재등록 상담이 필요한 시점이에요.",
+          body: `${renewalGuidance(activePass, state)} 지금 일정과 결제 여부를 같이 확인해 주세요.`
+        }
+      : null,
+    latestExtensionRequest
+      ? {
+          tone: latestExtensionRequest.status === "approved" ? ("good" as const) : latestExtensionRequest.status === "rejected" ? ("danger" as const) : ("info" as const),
+          title: `연장 요청 ${extensionStatusLabel(latestExtensionRequest.status)}`,
+          body:
+            latestExtensionRequest.status === "requested"
+              ? `${latestExtensionRequest.days}일 연장 요청이 접수됐어요. 관장 확인 후 만료일에 반영됩니다.`
+              : `${latestExtensionRequest.days}일 연장 요청 ${extensionStatusLabel(latestExtensionRequest.status)} 상태입니다.`
+        }
+      : null
+  ].filter((alert): alert is MemberAlert => Boolean(alert));
 
   return (
     <div className="member-dashboard">
@@ -1907,32 +2051,84 @@ function MemberHomeView({
           <UserCheck size={20} />
         </div>
         {activePass ? (
-          <div className="metric-grid">
-            <Metric label="잔여" value={`${activePass.remainingSessions}회`} />
-            <Metric label="만료" value={toInputDate(activePass.expiresOn)} />
-            <Metric label="결제" value={statusLabels[activePass.paymentStatus]} tone={activePass.paymentStatus === "paid" ? "good" : "warn"} />
-            <Metric label="재등록" value={shouldRenew(activePass, state) ? "상담 필요" : "정상"} tone={shouldRenew(activePass, state) ? "warn" : "good"} />
-          </div>
+          <>
+            <div className="metric-grid">
+              <Metric label="잔여" value={`${activePass.remainingSessions}회`} tone={activePass.remainingSessions <= 2 ? "warn" : undefined} />
+              <Metric label="만료" value={toInputDate(activePass.expiresOn)} tone={renewalNeeded ? "warn" : undefined} />
+              <Metric
+                label="결제"
+                value={statusLabels[activePass.paymentStatus]}
+                tone={activePass.paymentStatus === "paid" ? "good" : "warn"}
+              />
+              <Metric label="재등록" value={renewalNeeded ? "상담 필요" : "정상"} tone={renewalNeeded ? "warn" : "good"} />
+            </div>
+            <div className="member-summary-stack">
+              {homeAlerts.map((alert) => (
+                <div className={`member-alert ${alert.tone}`} key={`${alert.title}-${alert.body}`}>
+                  <strong>{alert.title}</strong>
+                  <p>{alert.body}</p>
+                </div>
+              ))}
+            </div>
+          </>
         ) : (
           <div className="empty-state">활성 PT권 없음</div>
         )}
       </section>
 
       <section className="section-band">
-        <h3>다음 예약</h3>
+        <div className="panel-heading compact">
+          <div>
+            <p className="eyebrow">예약 상태</p>
+            <h3>내 예약</h3>
+          </div>
+          {nextReservation && <StatusPill value={nextReservation.reservation.status} />}
+        </div>
         {nextReservation ? (
-          <div className="table-row single">
-            <span>{formatDateTime(nextReservation.slot.startAt)}</span>
-            <StatusPill value={nextReservation.reservation.status} />
-            {nextReservation.reservation.status === "confirmed" && (
-              <button className="small-button" onClick={() => requestCancel(nextReservation.reservation.id)}>
-                취소
-              </button>
-            )}
+          <div className="member-reservation-list">
+            {upcomingReservations.slice(0, 3).map(({ reservation, slot }) => (
+              <div className="member-reservation-card" key={reservation.id}>
+                <div>
+                  <strong>{formatDateTime(slot.startAt)}</strong>
+                  <p>{memberReservationSummary(reservation)}</p>
+                </div>
+                <div className="member-reservation-actions">
+                  <StatusPill value={reservation.status} />
+                  {reservation.status === "confirmed" && (
+                    <button className="small-button" onClick={() => requestCancel(reservation.id)}>
+                      취소
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="empty-state">예정된 예약이 없습니다.</div>
         )}
+      </section>
+
+      <section className="section-band wide">
+        <div className="panel-heading compact">
+          <div>
+            <p className="eyebrow">다음 할 일</p>
+            <h3>회원 안내</h3>
+          </div>
+        </div>
+        <div className="member-guidance-list">
+          {buildMemberGuidanceItems({
+            state,
+            activePass,
+            nextReservation,
+            recentPayment,
+            latestExtensionRequest
+          }).map((item) => (
+            <div className="member-guidance-item" key={item.title}>
+              <strong>{item.title}</strong>
+              <p>{item.body}</p>
+            </div>
+          ))}
+        </div>
       </section>
     </div>
   );
@@ -1940,10 +2136,16 @@ function MemberHomeView({
 
 function MemberBookingView({
   state,
+  member,
+  activePass,
+  reservations,
   weekDays,
   requestBooking
 }: {
   state: AppState;
+  member: Member;
+  activePass?: PtPass;
+  reservations: Reservation[];
   weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>;
   requestBooking: (slotId: string) => void;
 }) {
@@ -1952,100 +2154,96 @@ function MemberBookingView({
     ...group,
     slots: group.slots.filter((slot) => new Date(slot.startAt).getTime() <= visibleUntil)
   }));
-  const rows = buildWeekTimeRows(visibleWeekDays);
-  const firstSlotId = firstChronologicalSlot(visibleWeekDays)?.id;
-  const [selectedSlotId, setSelectedSlotId] = useState(firstSlotId);
-  const selectedSlot = visibleWeekDays
-    .flatMap((group) => group.slots)
-    .find((slot) => slot.id === selectedSlotId) ?? visibleWeekDays.flatMap((group) => group.slots).find((slot) => slot.id === firstSlotId);
+  const pendingReservationCount = reservations.filter((reservation) => ["requested", "confirmed", "cancel_requested"].includes(reservation.status)).length;
+  const visibleSlots = visibleWeekDays.flatMap((group) => group.slots);
 
   return (
     <section className="week-screen">
       <div className="panel-heading">
         <div>
           <p className="eyebrow">예약</p>
-          <h2>이번 주 가능 시간</h2>
+          <h2>날짜별 가능 시간</h2>
         </div>
         <CalendarDays size={20} />
       </div>
 
-      <div className="week-matrix member-week-matrix" role="grid" aria-label="이번 주 가능 시간">
-        <div className="week-matrix-header" role="row">
-          <span className="week-time-label">시간</span>
-          {visibleWeekDays.map((group) => (
-            <div className="week-day-heading" role="columnheader" key={group.day}>
-              <strong>{weekdayLabel(group.day)}</strong>
-              <span>{monthDayLabel(group.day)}</span>
-            </div>
-          ))}
+      <section className="member-booking-summary" aria-label="예약 안내 요약">
+        <div className="member-inline-stat">
+          <span>예약 가능 주차</span>
+          <strong>{state.policies.booking.publishWeeks}주</strong>
         </div>
-
-        {rows.map((row) => (
-          <div className="week-time-row" role="row" key={row.time}>
-            <span className="week-time-label">{row.time}</span>
-            {row.slots.map((slot, index) => {
-              const status = slot?.status ?? "empty";
-              const label = slot?.status === "blocked" ? "차단" : slot ? statusLabels[slot.status] : "없음";
-
-              return (
-                <button
-                  className={`week-cell ${status} ${selectedSlot?.id === slot?.id ? "selected" : ""}`}
-                  type="button"
-                  role="gridcell"
-                  key={`${row.time}-${visibleWeekDays[index]?.day ?? index}`}
-                  onClick={() => slot && setSelectedSlotId(slot.id)}
-                  disabled={!slot}
-                  aria-label={`${visibleWeekDays[index] ? weekdayLabel(visibleWeekDays[index].day) : ""} ${row.time} ${label}`}
-                >
-                  <span className="week-cell-status">{shortStatusLabel(status)}</span>
-                  <span className="week-cell-detail">{label}</span>
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-
-      <section className="week-selection-panel" aria-label="선택 예약 상세">
-        {selectedSlot ? (
-          <>
-            <div>
-              <p className="eyebrow">선택 시간</p>
-              <h3>{formatDateTime(selectedSlot.startAt)}</h3>
-              <p>{selectedSlot.status === "open" ? "예약 요청 가능" : statusLabels[selectedSlot.status]}</p>
-            </div>
-            <StatusPill value={selectedSlot.status} />
-            <div className="row-actions">
-              <button
-                className="primary-button"
-                onClick={() => requestBooking(selectedSlot.id)}
-                disabled={selectedSlot.status !== "open"}
-              >
-                예약 요청
-              </button>
-            </div>
-          </>
-        ) : (
-          <div className="empty-state">예약 가능한 시간이 없습니다.</div>
-        )}
+        <div className="member-inline-stat">
+          <span>진행 중 예약</span>
+          <strong>{pendingReservationCount}건</strong>
+        </div>
+        <div className="member-inline-stat">
+          <span>현재 결제</span>
+          <strong>{activePass ? statusLabels[activePass.paymentStatus] : "PT권 없음"}</strong>
+        </div>
       </section>
+
+      {activePass && activePass.paymentStatus !== "paid" && (
+        <div className="member-alert warn">
+          <strong>{member.name}님 결제 상태 확인 필요</strong>
+          <p>
+            현재 상태는 {statusLabels[activePass.paymentStatus]}입니다.
+            {state.policies.booking.allowUnpaidBooking
+              ? " 데모 기준으로는 예약 요청이 가능하지만, 운영에서는 결제 확인이 먼저 필요할 수 있습니다."
+              : " 현재 정책에서는 결제 확인 전 예약 요청이 제한됩니다."}
+          </p>
+        </div>
+      )}
+
+      <MonthlySchedulePicker
+        slots={visibleSlots}
+        reservations={reservations}
+        ariaLabel="예약 가능 날짜 달력"
+        emptyLabel="해당 날짜에 예약 가능한 시간이 없습니다."
+        renderSlot={(slot) => {
+          const canRequestBooking = Boolean(activePass && slot.status === "open");
+
+          return (
+            <ScheduleSlotCard
+              key={slot.id}
+              slot={slot}
+              status={slot.status}
+              title={slot.status === "open" ? "예약 요청 가능" : statusLabels[slot.status]}
+              description={selectedSlotDetailCopy(slot.status, state)}
+            >
+              <div className="row-actions">
+                <button className="primary-button" onClick={() => requestBooking(slot.id)} disabled={!canRequestBooking}>
+                  예약 요청
+                </button>
+              </div>
+            </ScheduleSlotCard>
+          );
+        }}
+      />
     </section>
   );
 }
 
 function MemberHistoryView({
+  state,
+  member,
   activePass,
   reservations,
   passEvents,
   payments,
+  extensionRequests,
   slotFor
 }: {
+  state: AppState;
+  member: Member;
   activePass?: PtPass;
   reservations: Reservation[];
   passEvents: PassEvent[];
   payments: Payment[];
+  extensionRequests: ExtensionRequest[];
   slotFor: (slotId: string) => AvailabilitySlot | undefined;
 }) {
+  const renewalNeeded = activePass ? shouldRenew(activePass, state) : false;
+
   return (
     <div className="member-dashboard">
       <section className="section-band">
@@ -2057,12 +2255,24 @@ function MemberHistoryView({
           <History size={20} />
         </div>
         {activePass ? (
-          <div className="metric-grid">
-            <Metric label="상품" value={activePass.policySnapshot.productName} />
-            <Metric label="기간" value={`${activePass.startsOn} ~ ${activePass.expiresOn}`} />
-            <Metric label="잔여" value={`${activePass.remainingSessions}/${activePass.totalSessions}회`} />
-            <Metric label="금액" value={formatWon(activePass.price)} />
-          </div>
+          <>
+            <div className="metric-grid">
+              <Metric label="상품" value={activePass.policySnapshot.productName} />
+              <Metric label="기간" value={`${activePass.startsOn} ~ ${activePass.expiresOn}`} tone={renewalNeeded ? "warn" : undefined} />
+              <Metric label="잔여" value={`${activePass.remainingSessions}/${activePass.totalSessions}회`} tone={activePass.remainingSessions <= 2 ? "warn" : undefined} />
+              <Metric label="금액" value={formatWon(activePass.price)} />
+            </div>
+            <div className="member-summary-stack">
+              <div className={`member-alert ${renewalNeeded ? "warn" : "info"}`}>
+                <strong>{renewalNeeded ? "재등록 안내 대상입니다." : `${member.name}님 회원권 요약`}</strong>
+                <p>
+                  {renewalNeeded
+                    ? renewalGuidance(activePass, state)
+                    : `현재 회원권은 ${statusLabels[activePass.paymentStatus]} 상태이며 ${activePass.policySnapshot.createdWithSettingsSummary} 기준으로 등록되었습니다.`}
+                </p>
+              </div>
+            </div>
+          </>
         ) : (
           <div className="empty-state">활성 PT권 없음</div>
         )}
@@ -2070,12 +2280,17 @@ function MemberHistoryView({
 
       <section className="section-band">
         <h3>결제 내역</h3>
-        <div className="table-list">
+        <div className="member-history-list">
           {payments.map((payment) => (
-            <div className="table-row" key={payment.id}>
-              <span>{formatDateTime(payment.updatedAt)}</span>
-              <StatusPill value={payment.status} />
-              <span>{formatWon(payment.amount)}</span>
+            <div className="member-history-card" key={payment.id}>
+              <div>
+                <strong>{formatWon(payment.amount)}</strong>
+                <p>{formatDateTime(payment.updatedAt)}</p>
+              </div>
+              <div className="member-history-meta">
+                <StatusPill value={payment.status} />
+                <span>{payment.memo}</span>
+              </div>
             </div>
           ))}
           {payments.length === 0 && <div className="empty-state">결제 내역이 없습니다.</div>}
@@ -2083,13 +2298,37 @@ function MemberHistoryView({
       </section>
 
       <section className="section-band">
+        <h3>연장 요청 상태</h3>
+        <div className="member-history-list">
+          {extensionRequests.map((request) => (
+            <div className="member-history-card" key={request.id}>
+              <div>
+                <strong>{request.days}일 연장 요청</strong>
+                <p>{request.reason}</p>
+              </div>
+              <div className="member-history-meta">
+                <StatusPill value={request.status} label={extensionStatusLabel(request.status)} />
+                <span>{formatDateTime(request.decidedAt ?? request.requestedAt)}</span>
+              </div>
+            </div>
+          ))}
+          {extensionRequests.length === 0 && <div className="empty-state">연장 요청 이력이 없습니다.</div>}
+        </div>
+      </section>
+
+      <section className="section-band">
         <h3>차감/연장/환불 이력</h3>
-        <div className="table-list">
+        <div className="member-history-list">
           {passEvents.map((event) => (
-            <div className="table-row" key={event.id}>
-              <span>{formatDateTime(event.createdAt)}</span>
-              <span>{event.reason}</span>
-              <strong>{event.deltaCount > 0 ? `+${event.deltaCount}` : event.deltaCount}</strong>
+            <div className="member-history-card" key={event.id}>
+              <div>
+                <strong>{event.reason}</strong>
+                <p>{formatDateTime(event.createdAt)}</p>
+              </div>
+              <div className="member-history-meta">
+                <span>{event.actor === "admin" ? "관장 처리" : event.actor === "system" ? "자동 반영" : "회원 처리"}</span>
+                <strong>{event.deltaCount > 0 ? `+${event.deltaCount}` : event.deltaCount}회</strong>
+              </div>
             </div>
           ))}
           {passEvents.length === 0 && <div className="empty-state">회원권 이력이 없습니다.</div>}
@@ -2098,13 +2337,19 @@ function MemberHistoryView({
 
       <section className="section-band wide">
         <h3>예약 이력</h3>
-        <div className="table-list">
+        <div className="member-history-list">
           {reservations.map((reservation) => {
             const slot = slotFor(reservation.slotId);
             return (
-              <div className="table-row" key={reservation.id}>
-                <span>{slot ? formatDateTime(slot.startAt) : "슬롯 없음"}</span>
-                <StatusPill value={reservation.status} />
+              <div className="member-history-card" key={reservation.id}>
+                <div>
+                  <strong>{slot ? formatDateTime(slot.startAt) : "슬롯 없음"}</strong>
+                  <p>{memberReservationSummary(reservation)}</p>
+                </div>
+                <div className="member-history-meta">
+                  <StatusPill value={reservation.status} />
+                  <span>{slot ? `${timeLabel(slot.startAt)} 시작` : "시간 정보 없음"}</span>
+                </div>
               </div>
             );
           })}
@@ -2113,6 +2358,171 @@ function MemberHistoryView({
       </section>
     </div>
   );
+}
+
+type MemberAlert = {
+  tone: "good" | "warn" | "danger" | "info";
+  title: string;
+  body: string;
+};
+
+function buildPaymentAlert(paymentStatus: PaymentStatus, recentPayment?: Payment): MemberAlert | null {
+  if (paymentStatus === "paid") {
+    return recentPayment
+      ? {
+          tone: "good",
+          title: "결제 확인이 완료되었습니다.",
+          body: `${formatDateTime(recentPayment.updatedAt)} 기준 ${recentPayment.memo}`
+        }
+      : null;
+  }
+
+  if (paymentStatus === "boxpos_requested") {
+    return {
+      tone: "warn",
+      title: "결제 요청이 발송된 상태입니다.",
+      body: recentPayment?.memo ?? "BOX POS 요청 후 입금 또는 결제 완료 확인이 필요합니다."
+    };
+  }
+
+  if (paymentStatus === "unpaid") {
+    return {
+      tone: "danger",
+      title: "미납 상태입니다.",
+      body: recentPayment?.memo ?? "예약 진행 전 결제 여부를 먼저 확인해 주세요."
+    };
+  }
+
+  if (paymentStatus === "refunded") {
+    return {
+      tone: "info",
+      title: "환불 처리된 회원권입니다.",
+      body: recentPayment?.memo ?? "환불 후 남은 일정과 재등록 여부를 다시 확인해 주세요."
+    };
+  }
+
+  return null;
+}
+
+function renewalGuidance(pass: PtPass, state: AppState) {
+  const expiresInDays = Math.ceil((new Date(`${pass.expiresOn}T23:59:59`).getTime() - Date.now()) / 86400000);
+
+  if (pass.remainingSessions <= state.policies.renewal.remainingSessionsThreshold && expiresInDays <= state.policies.renewal.daysBeforeExpiryThreshold) {
+    return `잔여 ${pass.remainingSessions}회이며 만료까지 ${Math.max(expiresInDays, 0)}일 남았습니다.`;
+  }
+
+  if (pass.remainingSessions <= state.policies.renewal.remainingSessionsThreshold) {
+    return `잔여 횟수가 ${pass.remainingSessions}회라 재등록 안내 기준에 들어왔습니다.`;
+  }
+
+  return `만료일까지 ${Math.max(expiresInDays, 0)}일 남아 재등록 안내 기준에 들어왔습니다.`;
+}
+
+function memberReservationSummary(reservation: Reservation) {
+  if (reservation.status === "requested") {
+    return "관장 승인 대기 중입니다.";
+  }
+  if (reservation.status === "confirmed") {
+    return "확정된 수업입니다. 24시간 전까지 직접 취소할 수 있습니다.";
+  }
+  if (reservation.status === "cancel_requested") {
+    return "취소 요청이 접수되어 차감 여부를 확인 중입니다.";
+  }
+  if (reservation.status === "completed") {
+    return "수업 완료로 1회가 차감되었습니다.";
+  }
+  if (reservation.status === "cancelled") {
+    return "예약이 취소되었습니다.";
+  }
+  if (reservation.status === "expired") {
+    return "요청 만료로 슬롯이 다시 열렸습니다.";
+  }
+  if (reservation.status === "no_show") {
+    return "노쇼로 처리된 예약입니다.";
+  }
+  return statusLabels[reservation.status] ?? reservation.status;
+}
+
+function extensionStatusLabel(status: ExtensionRequest["status"]) {
+  if (status === "requested") {
+    return "승인대기";
+  }
+  if (status === "approved") {
+    return "승인됨";
+  }
+  return "반려";
+}
+
+function selectedSlotDetailCopy(status: AvailabilitySlot["status"], state: AppState) {
+  if (status === "open") {
+    return `${state.policies.booking.requestExpiryHours}시간 안에 승인되지 않으면 요청이 자동 만료됩니다.`;
+  }
+  if (status === "held") {
+    return "다른 회원의 요청이 잡혀 있어 지금은 요청할 수 없습니다.";
+  }
+  if (status === "confirmed") {
+    return "이미 확정된 수업 시간입니다.";
+  }
+  return "운영 정책에 따라 차단된 시간입니다.";
+}
+
+function buildMemberGuidanceItems({
+  state,
+  activePass,
+  nextReservation,
+  recentPayment,
+  latestExtensionRequest
+}: {
+  state: AppState;
+  activePass?: PtPass;
+  nextReservation?: { reservation: Reservation; slot: AvailabilitySlot };
+  recentPayment?: Payment;
+  latestExtensionRequest?: ExtensionRequest;
+}) {
+  const items = [] as Array<{ title: string; body: string }>;
+
+  if (!activePass) {
+    items.push({
+      title: "활성 PT권이 없습니다.",
+      body: "회원 연결과 PT권 등록이 완료되어야 예약 요청과 이력 확인이 가능합니다."
+    });
+    return items;
+  }
+
+  items.push({
+    title: "예약은 주간 표에서 한 칸씩 요청합니다.",
+    body: `${state.policies.booking.publishWeeks}주 범위의 공개 슬롯만 보이며 요청은 ${state.policies.booking.requestExpiryHours}시간 동안 잠깁니다.`
+  });
+
+  if (nextReservation) {
+    items.push({
+      title: `가장 가까운 일정: ${formatDateTime(nextReservation.slot.startAt)}`,
+      body: memberReservationSummary(nextReservation.reservation)
+    });
+  }
+
+  if (activePass.paymentStatus !== "paid") {
+    items.push({
+      title: `결제 상태: ${statusLabels[activePass.paymentStatus]}`,
+      body: recentPayment?.memo ?? "미납/결제요청 상태는 회원 화면에 숨기지 않고 계속 표시됩니다."
+    });
+  }
+
+  if (latestExtensionRequest) {
+    items.push({
+      title: `연장 요청 ${extensionStatusLabel(latestExtensionRequest.status)}`,
+      body: `${latestExtensionRequest.reason} 사유로 ${latestExtensionRequest.days}일 요청되었습니다.`
+    });
+  }
+
+  if (shouldRenew(activePass, state)) {
+    items.push({
+      title: "재등록 안내 시점입니다.",
+      body: renewalGuidance(activePass, state)
+    });
+  }
+
+  return items;
 }
 
 function Metric({ label, value, tone }: { label: string; value: string; tone?: "good" | "warn" }) {
@@ -2237,6 +2647,51 @@ function firstChronologicalSlot(weekDays: Array<{ day: string; slots: Availabili
   return [...weekDays.flatMap((group) => group.slots)].sort((a, b) => a.startAt.localeCompare(b.startAt))[0];
 }
 
+function scheduleInitialDay(slots: AvailabilitySlot[]) {
+  const today = todayKey();
+  const firstFutureSlot = slots.find((slot) => slotDay(slot) >= today);
+  return firstFutureSlot ? slotDay(firstFutureSlot) : slots[0] ? slotDay(slots[0]) : today;
+}
+
+function buildMonthlyCalendarDays(month: string) {
+  const firstOfMonth = dayDate(`${month}-01`);
+  const firstWeekday = (firstOfMonth.getUTCDay() + 6) % 7;
+  const start = addDays(firstOfMonth, -firstWeekday);
+
+  return Array.from({ length: 42 }, (_, index) => addDays(start, index).toISOString().slice(0, 10));
+}
+
+function scheduleDayStatus(daySlots: AvailabilitySlot[], reservationsBySlotId: Map<string, Reservation>) {
+  if (daySlots.length === 0) {
+    return "empty";
+  }
+
+  const statuses = daySlots.map((slot) => reservationsBySlotId.get(slot.id)?.status ?? slot.status);
+
+  if (statuses.some((status) => status === "requested" || status === "cancel_requested" || status === "held")) {
+    return "requested";
+  }
+  if (statuses.some((status) => status === "confirmed" || status === "completed")) {
+    return "confirmed";
+  }
+  if (statuses.some((status) => status === "open")) {
+    return "open";
+  }
+  return "blocked";
+}
+
+function slotDay(slot: AvailabilitySlot) {
+  return slot.startAt.slice(0, 10);
+}
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function monthKey(day: string) {
+  return day.slice(0, 7);
+}
+
 function shortStatusLabel(value: string) {
   if (value === "open") {
     return "가";
@@ -2264,12 +2719,24 @@ function monthDayLabel(day: string) {
   return dayDate(day).toLocaleDateString("ko-KR", { month: "numeric", day: "numeric", timeZone: "UTC" });
 }
 
+function monthLabel(month: string) {
+  return dayDate(`${month}-01`).toLocaleDateString("ko-KR", { year: "numeric", month: "long", timeZone: "UTC" });
+}
+
+function formatDateForSchedule(day: string) {
+  return dayDate(day).toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long", timeZone: "UTC" });
+}
+
 function timeLabel(value: string) {
   return new Date(value).toLocaleTimeString("ko-KR", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false
   });
+}
+
+function timeRangeLabel(slot: AvailabilitySlot) {
+  return `${timeLabel(slot.startAt)} - ${timeLabel(slot.endAt)}`;
 }
 
 function dayDate(day: string) {

@@ -37,18 +37,23 @@ assert(
 );
 
 assert(
-  component.includes('className="week-matrix"'),
-  "week detail screens should use a fixed seven-day time matrix"
+  component.includes('className="schedule-calendar"'),
+  "schedule detail screens should use a monthly date calendar"
 );
 
 assert(
-  component.includes('className="week-time-row"'),
-  "week matrix should align slots by shared time rows"
+  component.includes('className="schedule-time-list"'),
+  "schedule detail screens should show selected-day time slots as a list"
 );
 
 assert(
-  !component.includes('className="week-grid"') && !component.includes('className="week-grid member-week-grid"'),
-  "week detail screens must not use the old horizontally scrolling day-column grid"
+  component.includes("MonthlySchedulePicker"),
+  "admin and member schedule screens should share the monthly calendar/time-list picker"
+);
+
+assert(
+  !component.includes('className="week-matrix"') && !component.includes('className="week-time-row"'),
+  "schedule detail screens must not use the old seven-day time matrix"
 );
 
 assert(

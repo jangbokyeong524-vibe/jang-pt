@@ -612,6 +612,187 @@ h3 {
   justify-self: end;
 }
 
+.schedule-picker {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.schedule-calendar,
+.schedule-time-list {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--row-radius);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.schedule-calendar-header,
+.schedule-time-heading,
+.schedule-slot-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.schedule-calendar-header strong {
+  min-width: 0;
+  font-size: 17px;
+  text-align: center;
+}
+
+.schedule-weekdays,
+.schedule-date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.schedule-weekdays span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.schedule-date-button {
+  min-width: 0;
+  min-height: 42px;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  padding: 4px 2px;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.schedule-date-button span {
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.schedule-date-button i {
+  min-width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #eeeeef;
+  color: var(--muted);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.schedule-date-button.outside {
+  color: #a5a5a5;
+  background: #f6f6f6;
+}
+
+.schedule-date-button:disabled {
+  opacity: 1;
+  color: #b8b8b8;
+  background: #f3f3f3;
+}
+
+.schedule-date-button.selected {
+  border-color: rgba(0, 102, 204, 0.58);
+  box-shadow: inset 0 0 0 1px rgba(0, 102, 204, 0.18);
+}
+
+.schedule-date-button.open,
+.schedule-date-button.open i {
+  border-color: rgba(0, 102, 204, 0.22);
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.schedule-date-button.requested,
+.schedule-date-button.requested i {
+  border-color: rgba(138, 90, 0, 0.22);
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.schedule-date-button.confirmed,
+.schedule-date-button.confirmed i {
+  border-color: rgba(31, 122, 69, 0.22);
+  background: var(--good-bg);
+  color: var(--good);
+}
+
+.schedule-date-button.blocked,
+.schedule-date-button.blocked i {
+  border-color: var(--line-soft);
+  background: #eeeeef;
+  color: var(--muted);
+}
+
+.schedule-time-heading h3,
+.schedule-slot-card h3 {
+  font-size: 18px;
+  line-height: 1.18;
+}
+
+.schedule-time-list {
+  align-content: start;
+}
+
+.schedule-slot-card {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--row-radius);
+  background: var(--surface);
+}
+
+.schedule-slot-card p:not(.eyebrow) {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.schedule-slot-card.open {
+  border-color: rgba(0, 102, 204, 0.22);
+  background: var(--info-bg);
+}
+
+.schedule-slot-card.held,
+.schedule-slot-card.requested,
+.schedule-slot-card.cancel_requested {
+  border-color: rgba(138, 90, 0, 0.22);
+  background: var(--warn-bg);
+}
+
+.schedule-slot-card.confirmed,
+.schedule-slot-card.completed {
+  border-color: rgba(31, 122, 69, 0.22);
+  background: var(--good-bg);
+}
+
+.schedule-slot-card.blocked,
+.schedule-slot-card.expired,
+.schedule-slot-card.cancelled,
+.schedule-slot-card.no_show {
+  border-color: var(--line-soft);
+  background: #eeeeef;
+}
+
+.schedule-slot-card .row-actions {
+  justify-content: flex-end;
+}
+
 .week-summary-cell {
   min-width: 0;
   display: flex;
@@ -1263,6 +1444,100 @@ textarea {
   gap: 12px;
 }
 
+.member-summary-stack,
+.member-guidance-list,
+.member-history-list,
+.member-reservation-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.member-alert,
+.member-guidance-item,
+.member-history-card,
+.member-reservation-card,
+.member-inline-stat {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--row-radius);
+  background: var(--surface);
+}
+
+.member-alert strong,
+.member-guidance-item strong,
+.member-history-card strong,
+.member-reservation-card strong,
+.member-inline-stat strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.member-alert p,
+.member-guidance-item p,
+.member-history-card p,
+.member-reservation-card p,
+.member-inline-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.member-alert.good {
+  border-color: rgba(31, 122, 69, 0.18);
+  background: var(--good-bg);
+}
+
+.member-alert.warn {
+  border-color: rgba(138, 90, 0, 0.18);
+  background: var(--warn-bg);
+}
+
+.member-alert.danger {
+  border-color: rgba(179, 38, 30, 0.18);
+  background: var(--danger-bg);
+}
+
+.member-alert.info {
+  border-color: rgba(0, 102, 204, 0.16);
+  background: var(--info-bg);
+}
+
+.member-booking-summary {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.member-inline-stat {
+  align-content: center;
+  min-height: 72px;
+}
+
+.member-inline-stat span,
+.member-history-meta span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.member-reservation-card,
+.member-history-card {
+  align-items: start;
+}
+
+.member-reservation-actions,
+.member-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .member-dashboard .wide {
   grid-column: 1 / -1;
 }
@@ -1415,7 +1690,8 @@ textarea {
   .metric-grid,
   .policy-grid,
   .settings-menu-grid,
-  .template-grid {
+  .template-grid,
+  .member-booking-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1529,6 +1805,26 @@ textarea {
     padding: 14px;
   }
 
+  .schedule-picker {
+    grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
+    align-items: start;
+    gap: 12px;
+  }
+
+  .schedule-calendar,
+  .schedule-time-list {
+    padding: 14px;
+  }
+
+  .schedule-date-button {
+    min-height: 54px;
+    border-radius: 12px;
+  }
+
+  .schedule-slot-card {
+    padding: 14px;
+  }
+
   .week-summary-grid {
     grid-template-columns: repeat(7, minmax(0, 1fr));
     overflow-x: visible;
@@ -1566,7 +1862,9 @@ textarea {
   .csv-option-grid,
   .settings-menu-grid,
   .template-grid,
-  .member-dashboard {
+  .member-dashboard,
+  .member-booking-summary,
+  .member-history-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
