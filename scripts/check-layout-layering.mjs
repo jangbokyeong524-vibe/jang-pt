@@ -46,6 +46,30 @@ assert(
   "schedule detail screens should show selected-day time slots as a list"
 );
 
+for (const className of ["schedule-slot-time", "schedule-slot-copy", "schedule-slot-meta"]) {
+  assert(component.includes(`className="${className}"`), `schedule slot cards should include compact row structure: ${className}`);
+}
+
+assert(
+  /\.schedule-slot-card\s*\{[^}]*grid-template-columns:\s*auto\s+minmax\(0,\s*1fr\)\s+auto/s.test(css),
+  "schedule slot cards should use a compact time/title/meta row"
+);
+
+assert(
+  /\.schedule-slot-card\s*\{[^}]*min-height:\s*5[2-9]px/s.test(css),
+  "schedule slot cards should keep a compact mobile row height"
+);
+
+assert(
+  !/\.schedule-slot-card\s*\{[^}]*padding:\s*1[24]px/s.test(css),
+  "schedule slot cards must not keep large mobile padding"
+);
+
+assert(
+  !/@media[^{]*\(min-width:\s*721px\)[\s\S]*?\.schedule-slot-card\s*\{[^}]*padding:\s*14px/s.test(css),
+  "desktop schedule slot cards must not expand back to large padding"
+);
+
 assert(
   component.includes("MonthlySchedulePicker"),
   "admin and member schedule screens should share the monthly calendar/time-list picker"

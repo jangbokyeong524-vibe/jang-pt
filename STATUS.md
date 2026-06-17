@@ -45,7 +45,7 @@ phase: member-link-approval-flow
 - `docs/supabase-schema.sql` now includes `pass_events.extension_request_id` and a unique `extension_added`-per-request index for the target extension approval design.
 - Admin/member screens use bottom tabs in the local demo UI.
 - Admin tabs are `홈 / 주간 / 회원 / 설정`; the old `CRM` tab and copy summary view are removed.
-- Admin `주간` and member `예약` detail screens now use a monthly date calendar followed by selected-day time cards.
+- Admin `주간` and member `예약` detail screens now use a monthly date calendar followed by compact selected-day time rows.
 - Admin bottom tabs use an even 4-column grid so icon/label alignment fits the current 4-tab IA.
 - Admin `설정` now opens to a menu list: `PT 상품`, `운영 정책`, `안내 문구`, `CSV 내보내기`.
 - `운영 정책` has a second menu layer for `예약`, `취소`, `연장`, `재등록`.
@@ -67,6 +67,7 @@ phase: member-link-approval-flow
 
 ## Last Verified
 
+- 2026-06-17: Selected-day schedule slots compact row UI verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, `git diff --check`, and Playwright fixture screenshots at 320px, 390px, and 1280px.
 - 2026-06-17: Member link phone mask input contract verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-17: Member link duplicate-open-request guard verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-17: Member link approval home visibility contract verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.

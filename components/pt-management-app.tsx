@@ -1513,15 +1513,15 @@ function ScheduleSlotCard({
 }) {
   return (
     <article className={`schedule-slot-card ${status}`}>
-      <div className="schedule-slot-main">
-        <div>
-          <p className="eyebrow">{timeRangeLabel(slot)}</p>
-          <h3>{title}</h3>
-          <p>{description}</p>
-        </div>
-        <StatusPill value={status} />
+      <p className="schedule-slot-time">{timeRangeLabel(slot)}</p>
+      <div className="schedule-slot-copy">
+        <h3>{title}</h3>
+        <p>{description}</p>
       </div>
-      {children}
+      <div className="schedule-slot-meta">
+        <StatusPill value={status} />
+        {children}
+      </div>
     </article>
   );
 }

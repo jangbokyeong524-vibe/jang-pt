@@ -736,31 +736,86 @@ h3 {
   color: var(--muted);
 }
 
-.schedule-time-heading h3,
-.schedule-slot-card h3 {
-  font-size: 18px;
+.schedule-time-heading {
+  gap: 8px;
+  padding-bottom: 2px;
+}
+
+.schedule-time-heading h3 {
+  font-size: 16px;
   line-height: 1.18;
 }
 
 .schedule-time-list {
   align-content: start;
+  gap: 8px;
 }
 
 .schedule-slot-card {
   min-width: 0;
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 6px 8px;
   border: 1px solid var(--line);
   border-radius: var(--row-radius);
   background: var(--surface);
 }
 
+.schedule-slot-time {
+  min-width: 70px;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.18;
+  white-space: nowrap;
+}
+
+.schedule-slot-copy {
+  min-width: 0;
+}
+
+.schedule-slot-copy h3 {
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.18;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .schedule-slot-card p:not(.eyebrow) {
-  margin-top: 4px;
+  margin-top: 2px;
   color: var(--muted);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.28;
+}
+
+.schedule-slot-copy p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.schedule-slot-meta {
+  min-width: 0;
+  max-width: 116px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.schedule-slot-meta > .status-pill {
+  margin-left: auto;
+}
+
+.schedule-slot-meta .row-actions {
+  justify-content: flex-end;
+  gap: 5px;
 }
 
 .schedule-slot-card.open {
@@ -789,8 +844,16 @@ h3 {
   background: #eeeeef;
 }
 
-.schedule-slot-card .row-actions {
-  justify-content: flex-end;
+.schedule-slot-card .icon-button {
+  width: 44px;
+  height: 44px;
+}
+
+.schedule-slot-card .small-button,
+.schedule-slot-card .primary-button {
+  min-height: 44px;
+  padding: 0 10px;
+  font-size: 13px;
 }
 
 .week-summary-cell {
@@ -1873,7 +1936,7 @@ textarea {
   }
 
   .schedule-slot-card {
-    padding: 14px;
+    padding: 7px 9px;
   }
 
   .week-summary-grid {
