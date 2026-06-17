@@ -1094,6 +1094,9 @@ export function PtManagementApp() {
                 weekDays={weekDays}
                 state={state}
                 memberName={memberName}
+                approveExistingMemberLink={approveExistingMemberLink}
+                approveNewMemberLink={approveNewMemberLink}
+                rejectMemberLink={rejectMemberLink}
               />
             )}
 
@@ -1188,15 +1191,22 @@ function AdminHomeView({
   tasks,
   weekDays,
   state,
-  memberName
+  memberName,
+  approveExistingMemberLink,
+  approveNewMemberLink,
+  rejectMemberLink
 }: {
   tasks: Array<{ id: string; title: string; body: string; badge: string; tone: string }>;
   weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>;
   state: AppState;
   memberName: (memberId: string) => string;
+  approveExistingMemberLink: (requestId: string, memberId: string) => void;
+  approveNewMemberLink: (requestId: string) => void;
+  rejectMemberLink: (requestId: string) => void;
 }) {
   const priorityTasks = tasks.slice(0, 3);
   const hiddenTaskCount = Math.max(0, tasks.length - priorityTasks.length);
+  const pendingMemberLinkRequests = state.memberLinkRequests.filter((request) => request.status === "pending");
 
   return (
     <div className="admin-home">
@@ -1225,6 +1235,23 @@ function AdminHomeView({
           )}
           {tasks.length === 0 && <div className="empty-state">오늘 처리할 항목이 없습니다.</div>}
         </div>
+      </section>
+
+      <section className="section-band">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">회원 연결</p>
+            <h2>승인 대기 {pendingMemberLinkRequests.length}</h2>
+          </div>
+          <UserCheck size={20} />
+        </div>
+        <MemberLinkReviewList
+          members={state.members}
+          requests={pendingMemberLinkRequests}
+          approveExistingMemberLink={approveExistingMemberLink}
+          approveNewMemberLink={approveNewMemberLink}
+          rejectMemberLink={rejectMemberLink}
+        />
       </section>
 
       <section className="section-band">
@@ -1657,35 +1684,14 @@ function MembersView({
 
         <section className="section-band">
           <h3>승인 대기</h3>
+          <MemberLinkReviewList
+            members={state.members}
+            requests={state.memberLinkRequests.filter((request) => request.status === "pending")}
+            approveExistingMemberLink={approveExistingMemberLink}
+            approveNewMemberLink={approveNewMemberLink}
+            rejectMemberLink={rejectMemberLink}
+          />
           <div className="table-list">
-            {state.memberLinkRequests
-              .filter((request) => request.status === "pending")
-              .map((request) => {
-                const matchedMember = state.members.find((member) => member.normalizedPhone === request.normalizedPhone);
-
-                return (
-                  <div className="table-row member-link-review-row" key={request.id}>
-                    <span>
-                      <strong>{request.displayName}</strong> / {request.inputPhone}
-                      <small>{matchedMember ? `자동 매칭: ${matchedMember.name}` : "자동 매칭 후보 없음"}</small>
-                    </span>
-                    <div className="row-actions">
-                      {matchedMember ? (
-                        <button className="small-button" onClick={() => approveExistingMemberLink(request.id, matchedMember.id)}>
-                          기존 회원 연결
-                        </button>
-                      ) : (
-                        <button className="small-button" onClick={() => approveNewMemberLink(request.id)}>
-                          신규 회원 생성 후 승인
-                        </button>
-                      )}
-                      <button className="small-button ghost" onClick={() => rejectMemberLink(request.id)}>
-                        반려
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
             {state.extensionRequests
               .filter((request) => request.status === "requested")
               .map((request) => (
@@ -1701,6 +1707,52 @@ function MembersView({
           </div>
         </section>
       </section>
+    </div>
+  );
+}
+
+function MemberLinkReviewList({
+  members,
+  requests,
+  approveExistingMemberLink,
+  approveNewMemberLink,
+  rejectMemberLink
+}: {
+  members: Member[];
+  requests: MemberLinkRequest[];
+  approveExistingMemberLink: (requestId: string, memberId: string) => void;
+  approveNewMemberLink: (requestId: string) => void;
+  rejectMemberLink: (requestId: string) => void;
+}) {
+  return (
+    <div className="table-list">
+      {requests.map((request) => {
+        const matchedMember = members.find((member) => member.normalizedPhone === request.normalizedPhone);
+
+        return (
+          <div className="table-row member-link-review-row" key={request.id}>
+            <span>
+              <strong>{request.displayName}</strong> / {request.inputPhone}
+              <small>{matchedMember ? `자동 매칭: ${matchedMember.name}` : "자동 매칭 후보 없음"}</small>
+            </span>
+            <div className="row-actions">
+              {matchedMember ? (
+                <button className="small-button" onClick={() => approveExistingMemberLink(request.id, matchedMember.id)}>
+                  기존 회원 연결
+                </button>
+              ) : (
+                <button className="small-button" onClick={() => approveNewMemberLink(request.id)}>
+                  신규 회원 생성 후 승인
+                </button>
+              )}
+              <button className="small-button ghost" onClick={() => rejectMemberLink(request.id)}>
+                반려
+              </button>
+            </div>
+          </div>
+        );
+      })}
+      {requests.length === 0 && <div className="empty-state">승인 대기 중인 회원 연결 요청이 없습니다.</div>}
     </div>
   );
 }

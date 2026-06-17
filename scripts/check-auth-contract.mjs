@@ -50,5 +50,7 @@ assert(memberLinkActions.includes("duplicate key"), "Member link actions must ma
 assert(app.includes("approveExistingMemberLinkAction"), "App must call existing-member link approval action");
 assert(app.includes("approveNewMemberLinkAction"), "App must call new-member link approval action");
 assert(app.includes("rejectMemberLinkAction"), "App must call member link rejection action");
+assert(app.includes("<MemberLinkReviewList"), "Admin views must render member link review controls");
+assert(app.includes("pendingMemberLinkRequests"), "Admin home must expose pending member link requests directly");
 
 console.log("Auth contract check passed.");
