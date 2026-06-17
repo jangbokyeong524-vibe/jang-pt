@@ -15,6 +15,7 @@ const authConfig = read("lib/auth-config.ts");
 const supabase = read("lib/supabase.ts");
 const supabaseServer = read("lib/supabase-server.ts");
 const memberLinkActions = read("lib/member-link-actions.ts");
+const schema = read("docs/supabase-schema.sql");
 const app = read("components/pt-management-app.tsx");
 const callbackPage = read("app/auth/callback/page.tsx");
 const bootstrapRoute = read("app/api/auth/bootstrap-admin/route.ts");
@@ -52,5 +53,9 @@ assert(app.includes("approveNewMemberLinkAction"), "App must call new-member lin
 assert(app.includes("rejectMemberLinkAction"), "App must call member link rejection action");
 assert(app.includes("<MemberLinkReviewList"), "Admin views must render member link review controls");
 assert(app.includes("pendingMemberLinkRequests"), "Admin home must expose pending member link requests directly");
+assert(schema.includes("member_link_requests_one_open_request_per_auth_user_idx"), "Schema must prevent multiple pending/approved link requests per auth user");
+assert(schema.includes("where status in ('pending', 'approved')"), "Open link request uniqueness must apply only to pending/approved states");
+assert(memberLinkActions.includes("rejectDuplicatePendingMemberLinkRequests"), "Approving a member link must close duplicate pending requests for the same auth user");
+assert(memberLinkActions.includes("이미 승인 대기 또는 승인된 요청이 있습니다."), "Duplicate open link requests must show a user-safe message");
 
 console.log("Auth contract check passed.");

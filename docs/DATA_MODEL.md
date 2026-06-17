@@ -69,7 +69,9 @@ availability_templates
 - 매칭 후보가 없으면 `members`에 `display_name`, `input_phone`, `normalized_phone`, `status = active`, `memo = ""`로 신규 회원을 만든 뒤 그 회원 ID로 승인한다.
 - 신규 회원 생성 승인 시 PT권은 만들지 않는다. PT권은 회원 상세 화면에서 별도 등록한다.
 - 반려는 `status = rejected`, `rejected_at`을 기록한다.
-- 같은 Google 계정에 `pending` 또는 `approved` 요청이 있으면 추가 요청 대신 현재 상태를 보여준다.
+- 같은 Google 계정에는 `pending` 또는 `approved` 요청을 합쳐 하나만 허용한다.
+- 이미 승인된 계정에 남아 있는 다른 `pending` 요청은 관리자 승인 목록에서 제외하고, 승인 처리 시 중복 pending은 `rejected`로 닫는다.
+- `member_link_requests_one_open_request_per_auth_user_idx`는 DB 레벨에서 계정당 open 요청 1개 규칙을 강제한다.
 
 ## 4. 회원 테이블
 

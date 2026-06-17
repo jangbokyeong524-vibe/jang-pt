@@ -112,6 +112,7 @@ npm.cmd run dev
 6. 전화번호가 기존 `members.normalized_phone`과 일치하면 `기존 회원 연결`로 승인한다.
 7. 매칭 후보가 없으면 `신규 회원 생성 후 승인`으로 `members` row를 만든 뒤 승인한다.
 8. 부정확한 요청은 `반려`로 처리한다.
+9. 같은 Google 계정에 기존 중복 `pending` 요청이 2개 있으면 하나를 승인한 뒤 나머지는 관리자 승인 목록에서 사라지는지 확인한다.
 
 기대 결과:
 
@@ -119,13 +120,15 @@ npm.cmd run dev
 - 승인 전 PT권/결제/예약 정보는 보이지 않는다.
 - 기존 회원 승인 시 요청의 `member_id`, `status = approved`, `approved_at`이 실제 Supabase DB에 반영된다.
 - 신규 회원 생성 승인 시 `members`에는 이름, 전화번호, 정규화 전화번호, `active` 상태, 빈 메모만 생성되고 PT권은 자동 생성되지 않는다.
+- 같은 계정의 `pending`/`approved` open 요청은 DB에 하나만 남는다.
+- 승인 후 같은 계정의 다른 `pending` 요청은 `rejected`로 닫히고 추가 승인할 수 없다.
 - 반려 시 요청은 `status = rejected`, `rejected_at` 상태가 되고 회원 화면에서 반려 상태와 재요청 가능성이 보인다.
 - 승인 후 본인 데이터만 보인다.
 - 다른 회원 데이터는 보이지 않는다.
 
 자동 확인:
 
-- `npm run check:layout`는 `lib/member-link-actions.ts`와 기존 회원 승인, 신규 회원 생성 승인, 반려 액션이 없으면 실패해야 한다.
+- `npm run check:layout`는 `lib/member-link-actions.ts`, 기존 회원 승인, 신규 회원 생성 승인, 반려 액션, 계정당 open 요청 unique index, 승인 시 중복 pending 정리 액션이 없으면 실패해야 한다.
 
 ## 6. 예약 요청 테스트
 

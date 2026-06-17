@@ -25,6 +25,8 @@
 - 회원은 직접 `members` row를 만들 수 없고, 승인 전에는 `member_link_requests`만 생성/조회할 수 있다.
 - 관장은 부정확한 요청을 `rejected`로 반려할 수 있으며, 반려된 회원은 이름과 전화번호를 확인해 다시 요청할 수 있다.
 - 같은 Google 계정에 `pending` 또는 `approved` 요청이 있으면 앱은 추가 요청 폼 대신 현재 상태를 보여줘 중복 요청을 막는다.
+- `member_link_requests_one_open_request_per_auth_user_idx`는 같은 계정의 open 요청 중복을 DB 레벨에서 막는다.
+- 승인 처리 시 같은 계정에 남아 있는 다른 `pending` 요청은 `rejected`로 닫아 관리자 화면에서 추가 승인할 수 없게 한다.
 - 승인 전 회원은 PT권, 결제, 예약 정보를 볼 수 없다.
 - 승인된 회원은 본인 `member_id`에 연결된 데이터만 볼 수 있다.
 

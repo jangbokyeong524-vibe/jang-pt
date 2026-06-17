@@ -409,10 +409,10 @@ export function PtManagementApp() {
         fallback: () => {
           setState((current) => ({
             ...current,
-            memberLinkRequests: current.memberLinkRequests.map((request) =>
-              request.id === requestId
-                ? { ...request, memberId, status: "approved", approvedAt: new Date().toISOString() }
-                : request
+            memberLinkRequests: approveMemberLinkAndRejectDuplicatePendingRequests(
+              current.memberLinkRequests,
+              requestId,
+              memberId
             )
           }));
         }
@@ -459,10 +459,12 @@ export function PtManagementApp() {
                   },
                   ...current.members
                 ],
-            memberLinkRequests: current.memberLinkRequests.map((item) =>
-              item.id === requestId
-                ? { ...item, memberId, status: "approved", approvedAt: new Date().toISOString() }
-                : item
+            memberLinkRequests: approveMemberLinkAndRejectDuplicatePendingRequests(
+              current.memberLinkRequests.map((item) =>
+                item.id === requestId ? { ...item, authUserId: item.authUserId ?? request.authUserId } : item
+              ),
+              requestId,
+              memberId
             )
           }));
         }
@@ -1206,7 +1208,7 @@ function AdminHomeView({
 }) {
   const priorityTasks = tasks.slice(0, 3);
   const hiddenTaskCount = Math.max(0, tasks.length - priorityTasks.length);
-  const pendingMemberLinkRequests = state.memberLinkRequests.filter((request) => request.status === "pending");
+  const pendingMemberLinkRequests = reviewablePendingMemberLinkRequests(state.memberLinkRequests);
 
   return (
     <div className="admin-home">
@@ -1686,7 +1688,7 @@ function MembersView({
           <h3>승인 대기</h3>
           <MemberLinkReviewList
             members={state.members}
-            requests={state.memberLinkRequests.filter((request) => request.status === "pending")}
+            requests={reviewablePendingMemberLinkRequests(state.memberLinkRequests)}
             approveExistingMemberLink={approveExistingMemberLink}
             approveNewMemberLink={approveNewMemberLink}
             rejectMemberLink={rejectMemberLink}
@@ -3143,6 +3145,42 @@ function mergeMemberLinkRequests(
   );
 
   return [...nextRequests, ...unrelatedRequests];
+}
+
+function reviewablePendingMemberLinkRequests(requests: MemberLinkRequest[]) {
+  const approvedAuthUserIds = new Set(
+    requests
+      .filter((request) => request.authUserId && request.status === "approved")
+      .map((request) => request.authUserId)
+  );
+
+  return requests.filter(
+    (request) =>
+      request.status === "pending" &&
+      (!request.authUserId || !approvedAuthUserIds.has(request.authUserId))
+  );
+}
+
+function approveMemberLinkAndRejectDuplicatePendingRequests(
+  requests: MemberLinkRequest[],
+  requestId: string,
+  memberId: string
+) {
+  const approvedRequest = requests.find((request) => request.id === requestId);
+  const approvedAt = new Date().toISOString();
+  const rejectedAt = new Date().toISOString();
+
+  return requests.map((request) => {
+    if (request.id === requestId) {
+      return { ...request, memberId, status: "approved" as const, approvedAt };
+    }
+
+    if (approvedRequest?.authUserId && request.authUserId === approvedRequest.authUserId && request.status === "pending") {
+      return { ...request, status: "rejected" as const, rejectedAt };
+    }
+
+    return request;
+  });
 }
 
 function AuthStatePanel({ title, body }: { title: string; body: string }) {

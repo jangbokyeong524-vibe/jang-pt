@@ -44,6 +44,35 @@ create table if not exists public.member_link_requests (
 create index if not exists member_link_requests_auth_user_id_idx
   on public.member_link_requests(auth_user_id);
 
+with ranked_open_link_requests as (
+  select
+    id,
+    row_number() over (
+      partition by auth_user_id
+      order by
+        case status when 'approved' then 0 else 1 end,
+        approved_at desc nulls last,
+        requested_at desc,
+        id desc
+    ) as open_rank
+  from public.member_link_requests
+  where status in ('pending', 'approved')
+)
+update public.member_link_requests request
+set
+  member_id = null,
+  status = 'rejected',
+  approved_by = null,
+  approved_at = null,
+  rejected_at = coalesce(request.rejected_at, now())
+from ranked_open_link_requests ranked
+where request.id = ranked.id
+  and ranked.open_rank > 1;
+
+create unique index if not exists member_link_requests_one_open_request_per_auth_user_idx
+  on public.member_link_requests(auth_user_id)
+  where status in ('pending', 'approved');
+
 create index if not exists member_link_requests_member_id_idx
   on public.member_link_requests(member_id);
 

@@ -27,6 +27,12 @@ type MemberLinkRequestRow = {
   rejected_at?: string | null;
 };
 
+type MemberLinkRequestIdentityRow = {
+  id: string;
+  auth_user_id?: string;
+  status: MemberLinkRequest["status"];
+};
+
 export type MemberLinkReviewData = {
   members: Member[];
   memberLinkRequests: MemberLinkRequest[];
@@ -61,6 +67,10 @@ function mapMemberLinkRequest(row: MemberLinkRequestRow): MemberLinkRequest {
 
 function normalizeMemberLinkError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
+
+  if (message.includes("member_link_requests_one_open_request_per_auth_user_idx")) {
+    return new Error("이미 승인 대기 또는 승인된 요청이 있습니다.");
+  }
 
   if (message.includes("duplicate key") || message.includes("23505") || message.includes("members_normalized_phone_idx")) {
     return new Error("이미 등록된 전화번호입니다. 기존 회원 연결로 승인하세요.");
@@ -177,10 +187,66 @@ export async function submitMemberLinkRequestAction({
     .single();
 
   if (error) {
-    throw error;
+    throw normalizeMemberLinkError(error);
   }
 
   return mapMemberLinkRequest(data as MemberLinkRequestRow);
+}
+
+async function rejectDuplicatePendingMemberLinkRequests({
+  supabase,
+  approvedRequestId,
+  authUserId
+}: {
+  supabase: DataClient;
+  approvedRequestId: string;
+  authUserId?: string;
+}) {
+  if (!supabase || !authUserId) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("member_link_requests")
+    .update({
+      status: "rejected",
+      rejected_at: new Date().toISOString()
+    })
+    .eq("auth_user_id", authUserId)
+    .eq("status", "pending")
+    .neq("id", approvedRequestId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+async function findExistingApprovedMemberLinkRequest({
+  supabase,
+  authUserId,
+  requestId
+}: {
+  supabase: DataClient;
+  authUserId?: string;
+  requestId: string;
+}) {
+  if (!supabase || !authUserId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("member_link_requests")
+    .select("id, auth_user_id, status")
+    .eq("auth_user_id", authUserId)
+    .eq("status", "approved")
+    .neq("id", requestId)
+    .limit(1);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data?.[0] as MemberLinkRequestIdentityRow | undefined) ?? null;
 }
 
 export async function approveExistingMemberLinkAction({
@@ -198,6 +264,32 @@ export async function approveExistingMemberLinkAction({
     return fallback();
   }
 
+  const { data: targetRequest, error: targetError } = await supabase
+    .from("member_link_requests")
+    .select("id, auth_user_id, status")
+    .eq("id", requestId)
+    .single();
+
+  if (targetError) {
+    throw targetError;
+  }
+
+  const targetAuthUserId = String(targetRequest.auth_user_id ?? "");
+  const existingApprovedRequest = await findExistingApprovedMemberLinkRequest({
+    supabase,
+    authUserId: targetAuthUserId,
+    requestId
+  });
+
+  if (existingApprovedRequest) {
+    await rejectDuplicatePendingMemberLinkRequests({
+      supabase,
+      approvedRequestId: existingApprovedRequest.id,
+      authUserId: targetAuthUserId
+    });
+    throw new Error("이미 승인 대기 또는 승인된 요청이 있습니다.");
+  }
+
   const { error } = await supabase
     .from("member_link_requests")
     .update({
@@ -210,6 +302,12 @@ export async function approveExistingMemberLinkAction({
   if (error) {
     throw error;
   }
+
+  await rejectDuplicatePendingMemberLinkRequests({
+    supabase,
+    approvedRequestId: requestId,
+    authUserId: targetAuthUserId
+  });
 }
 
 export async function approveNewMemberLinkAction({
