@@ -1341,6 +1341,7 @@ function WeekSchedule({
     <MonthlySchedulePicker
       slots={state.slots}
       reservations={state.reservations}
+      variant="admin"
       ariaLabel="예약 일정 달력"
       emptyLabel="해당 날짜에 등록된 시간이 없습니다."
       renderSlot={(slot, reservation) => {
@@ -1386,12 +1387,14 @@ function WeekSchedule({
 function MonthlySchedulePicker({
   slots,
   reservations,
+  variant,
   ariaLabel,
   emptyLabel,
   renderSlot
 }: {
   slots: AvailabilitySlot[];
   reservations: Reservation[];
+  variant: "admin" | "member";
   ariaLabel: string;
   emptyLabel: string;
   renderSlot: (slot: AvailabilitySlot, reservation?: Reservation) => ReactNode;
@@ -1429,6 +1432,7 @@ function MonthlySchedulePicker({
 
   const calendarDays = useMemo(() => buildMonthlyCalendarDays(visibleMonth), [visibleMonth]);
   const selectedSlots = slotsByDay.get(selectedDay) ?? [];
+  const scheduleDaySummary = getScheduleDaySummary(selectedSlots, reservationsBySlotId, variant);
 
   function moveMonth(delta: number) {
     const currentMonth = dayDate(`${visibleMonth}-01`);
@@ -1461,11 +1465,11 @@ function MonthlySchedulePicker({
           {calendarDays.map((day) => {
             const daySlots = slotsByDay.get(day) ?? [];
             const disabled = daySlots.length === 0;
-            const dayStatus = scheduleDayStatus(daySlots, reservationsBySlotId);
+            const daySummary = getScheduleDaySummary(daySlots, reservationsBySlotId, variant);
 
             return (
               <button
-                className={`schedule-date-button ${dayStatus} ${selectedDay === day ? "selected" : ""} ${monthKey(day) === visibleMonth ? "" : "outside"}`}
+                className={`schedule-date-button ${daySummary.status} ${selectedDay === day ? "selected" : ""} ${monthKey(day) === visibleMonth ? "" : "outside"}`}
                 type="button"
                 key={day}
                 onClick={() => setSelectedDay(day)}
@@ -1473,7 +1477,7 @@ function MonthlySchedulePicker({
                 aria-pressed={selectedDay === day}
               >
                 <span>{dayDate(day).getUTCDate()}</span>
-                {daySlots.length > 0 && <i>{daySlots.length}</i>}
+                {daySummary.label && <i className="schedule-day-label">{daySummary.label}</i>}
               </button>
             );
           })}
@@ -1486,7 +1490,7 @@ function MonthlySchedulePicker({
             <p className="eyebrow">선택 날짜</p>
             <h3>{formatDateForSchedule(selectedDay)}</h3>
           </div>
-          <StatusPill value={selectedSlots.length > 0 ? "open" : "blocked"} label={`${selectedSlots.length}개`} />
+          <StatusPill value={scheduleDaySummary.status} label={scheduleDaySummary.headingLabel} />
         </div>
         {selectedSlots.length > 0 ? (
           selectedSlots.map((slot) => renderSlot(slot, reservationsBySlotId.get(slot.id)))
@@ -1521,6 +1525,47 @@ function ScheduleSlotCard({
       <div className="schedule-slot-meta">
         <StatusPill value={status} />
         {children}
+      </div>
+    </article>
+  );
+}
+
+function MemberScheduleSlotRow({
+  slot,
+  reservation,
+  canRequestBooking,
+  requestBooking,
+  requestCancel
+}: {
+  slot: AvailabilitySlot;
+  reservation?: Reservation;
+  canRequestBooking: boolean;
+  requestBooking: (slotId: string) => void;
+  requestCancel: (reservationId: string) => void;
+}) {
+  const rowStatus = reservation?.status ?? slot.status;
+  const title = memberSlotTitle(slot, reservation);
+  const description = memberSlotDescription(slot, reservation);
+
+  return (
+    <article className={`member-slot-row ${rowStatus}`}>
+      <p className="schedule-slot-time">{timeRangeLabel(slot)}</p>
+      <div className="member-slot-primary">
+        <h3>{title}</h3>
+        <p>{description}</p>
+      </div>
+      <div className="schedule-slot-meta">
+        <StatusPill value={rowStatus} label={memberSlotStatusLabel(slot, reservation)} />
+        {!reservation && (
+          <button className="primary-button" onClick={() => requestBooking(slot.id)} disabled={!canRequestBooking}>
+            예약 요청
+          </button>
+        )}
+        {reservation?.status === "confirmed" && (
+          <button className="small-button" onClick={() => requestCancel(reservation.id)}>
+            취소
+          </button>
+        )}
       </div>
     </article>
   );
@@ -2224,6 +2269,7 @@ function MemberView({
           reservations={reservations}
           weekDays={weekDays}
           requestBooking={requestBooking}
+          requestCancel={requestCancel}
         />
       )}
 
@@ -2398,7 +2444,8 @@ function MemberBookingView({
   activePass,
   reservations,
   weekDays,
-  requestBooking
+  requestBooking,
+  requestCancel
 }: {
   state: AppState;
   member: Member;
@@ -2406,6 +2453,7 @@ function MemberBookingView({
   reservations: Reservation[];
   weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>;
   requestBooking: (slotId: string) => void;
+  requestCancel: (reservationId: string) => void;
 }) {
   const visibleUntil = addDays(new Date(), state.policies.booking.publishWeeks * 7).getTime();
   const visibleWeekDays = weekDays.map((group) => ({
@@ -2413,7 +2461,15 @@ function MemberBookingView({
     slots: group.slots.filter((slot) => new Date(slot.startAt).getTime() <= visibleUntil)
   }));
   const pendingReservationCount = reservations.filter((reservation) => ["requested", "confirmed", "cancel_requested"].includes(reservation.status)).length;
-  const visibleSlots = visibleWeekDays.flatMap((group) => group.slots);
+  const memberReservationForSlot = new Map(reservations.map((reservation) => [reservation.slotId, reservation]));
+  const activeMemberReservationSlotIds = new Set(
+    reservations
+      .filter((reservation) => ["requested", "confirmed", "cancel_requested"].includes(reservation.status))
+      .map((reservation) => reservation.slotId)
+  );
+  const visibleMemberSlots = visibleWeekDays
+    .flatMap((group) => group.slots)
+    .filter((slot) => slot.status === "open" || activeMemberReservationSlotIds.has(slot.id));
 
   return (
     <section className="week-screen">
@@ -2453,27 +2509,23 @@ function MemberBookingView({
       )}
 
       <MonthlySchedulePicker
-        slots={visibleSlots}
+        slots={visibleMemberSlots}
         reservations={reservations}
+        variant="member"
         ariaLabel="예약 가능 날짜 달력"
         emptyLabel="해당 날짜에 예약 가능한 시간이 없습니다."
-        renderSlot={(slot) => {
-          const canRequestBooking = Boolean(activePass && slot.status === "open");
+        renderSlot={(slot, reservation = memberReservationForSlot.get(slot.id)) => {
+          const canRequestBooking = Boolean(activePass && slot.status === "open" && !reservation);
 
           return (
-            <ScheduleSlotCard
+            <MemberScheduleSlotRow
               key={slot.id}
               slot={slot}
-              status={slot.status}
-              title={slot.status === "open" ? "예약 요청 가능" : statusLabels[slot.status]}
-              description={selectedSlotDetailCopy(slot.status, state)}
-            >
-              <div className="row-actions">
-                <button className="primary-button" onClick={() => requestBooking(slot.id)} disabled={!canRequestBooking}>
-                  예약 요청
-                </button>
-              </div>
-            </ScheduleSlotCard>
+              reservation={reservation}
+              canRequestBooking={canRequestBooking}
+              requestBooking={requestBooking}
+              requestCancel={requestCancel}
+            />
           );
         }}
       />
@@ -2701,6 +2753,54 @@ function memberReservationSummary(reservation: Reservation) {
   return statusLabels[reservation.status] ?? reservation.status;
 }
 
+function memberSlotTitle(slot: AvailabilitySlot, reservation?: Reservation) {
+  if (reservation?.status === "confirmed") {
+    return "내 예약";
+  }
+  if (reservation?.status === "requested") {
+    return "예약 요청 대기";
+  }
+  if (reservation?.status === "cancel_requested") {
+    return "취소 요청 확인 중";
+  }
+  if (slot.status === "open") {
+    return "예약 요청 가능";
+  }
+  return statusLabels[slot.status] ?? "예약 불가";
+}
+
+function memberSlotDescription(slot: AvailabilitySlot, reservation?: Reservation) {
+  if (reservation?.status === "confirmed") {
+    return "확정된 PT 시간입니다.";
+  }
+  if (reservation?.status === "requested") {
+    return "관장 승인 전까지 이 시간이 잠깁니다.";
+  }
+  if (reservation?.status === "cancel_requested") {
+    return "관장이 차감 여부를 확인 중입니다.";
+  }
+  if (slot.status === "open") {
+    return "예약 요청을 보낼 수 있습니다.";
+  }
+  return statusLabels[slot.status] ?? "예약할 수 없는 시간입니다.";
+}
+
+function memberSlotStatusLabel(slot: AvailabilitySlot, reservation?: Reservation) {
+  if (reservation?.status === "confirmed") {
+    return "확정";
+  }
+  if (reservation?.status === "requested") {
+    return "대기";
+  }
+  if (reservation?.status === "cancel_requested") {
+    return "취소중";
+  }
+  if (slot.status === "open") {
+    return "가능";
+  }
+  return statusLabels[slot.status] ?? slot.status;
+}
+
 function extensionStatusLabel(status: ExtensionRequest["status"]) {
   if (status === "requested") {
     return "승인대기";
@@ -2919,23 +3019,46 @@ function buildMonthlyCalendarDays(month: string) {
   return Array.from({ length: 42 }, (_, index) => addDays(start, index).toISOString().slice(0, 10));
 }
 
-function scheduleDayStatus(daySlots: AvailabilitySlot[], reservationsBySlotId: Map<string, Reservation>) {
+function getScheduleDaySummary(
+  daySlots: AvailabilitySlot[],
+  reservationsBySlotId: Map<string, Reservation>,
+  variant: "admin" | "member"
+) {
   if (daySlots.length === 0) {
-    return "empty";
+    return { status: "empty", label: "", headingLabel: "0개" };
   }
 
   const statuses = daySlots.map((slot) => reservationsBySlotId.get(slot.id)?.status ?? slot.status);
 
+  if (variant === "member") {
+    if (statuses.some((status) => status === "confirmed")) {
+      return { status: "member-confirmed", label: "내예약", headingLabel: "내 예약" };
+    }
+    if (statuses.some((status) => status === "requested")) {
+      return { status: "member-requested", label: "대기", headingLabel: "요청 대기" };
+    }
+    if (statuses.some((status) => status === "cancel_requested")) {
+      return { status: "member-cancel", label: "취소중", headingLabel: "취소 확인중" };
+    }
+
+    const openCount = statuses.filter((status) => status === "open").length;
+    if (openCount > 0) {
+      return { status: "member-open", label: `가능 ${openCount}`, headingLabel: `예약 가능 ${openCount}개` };
+    }
+
+    return { status: "blocked", label: "", headingLabel: "예약 가능 0개" };
+  }
+
   if (statuses.some((status) => status === "requested" || status === "cancel_requested" || status === "held")) {
-    return "requested";
+    return { status: "requested", label: `${daySlots.length}`, headingLabel: `${daySlots.length}개` };
   }
   if (statuses.some((status) => status === "confirmed" || status === "completed")) {
-    return "confirmed";
+    return { status: "confirmed", label: `${daySlots.length}`, headingLabel: `${daySlots.length}개` };
   }
   if (statuses.some((status) => status === "open")) {
-    return "open";
+    return { status: "open", label: `${daySlots.length}`, headingLabel: `${daySlots.length}개` };
   }
-  return "blocked";
+  return { status: "blocked", label: `${daySlots.length}`, headingLabel: `${daySlots.length}개` };
 }
 
 function slotDay(slot: AvailabilitySlot) {

@@ -76,6 +76,41 @@ assert(
 );
 
 assert(
+  component.includes("getScheduleDaySummary") && component.includes("scheduleDaySummary"),
+  "schedule calendar should use role-specific day summaries"
+);
+
+assert(
+  component.includes('variant="member"') && component.includes('variant="admin"'),
+  "admin and member schedule calendars should declare their role variant"
+);
+
+for (const className of ["schedule-day-label", "member-slot-primary"]) {
+  assert(component.includes(`className="${className}"`), `member schedule should include calendar-first/member-only structure: ${className}`);
+}
+
+assert(
+  /className=\{`member-slot-row/.test(component),
+  "member schedule should render member-slot-row rows"
+);
+
+assert(
+  component.includes("visibleMemberSlots") && component.includes("memberReservationForSlot"),
+  "member booking should hide unavailable slots and only render member-owned reservations"
+);
+
+assert(
+  component.includes("requestCancel={requestCancel}") && /function MemberBookingView[\s\S]*requestCancel: \(reservationId: string\) => void/.test(component),
+  "member booking rows should expose cancel action for own confirmed reservations"
+);
+
+const memberBookingView = component.slice(component.indexOf("function MemberBookingView"), component.indexOf("function MemberHistoryView"));
+assert(
+  !memberBookingView.includes("memberName("),
+  "member booking screen must not render other member names"
+);
+
+assert(
   !component.includes('className="week-matrix"') && !component.includes('className="week-time-row"'),
   "schedule detail screens must not use the old seven-day time matrix"
 );

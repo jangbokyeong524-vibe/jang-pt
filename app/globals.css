@@ -682,14 +682,17 @@ h3 {
 .schedule-date-button i {
   min-width: 18px;
   height: 18px;
+  max-width: 100%;
   display: inline-grid;
   place-items: center;
   border-radius: 999px;
+  padding: 0 3px;
   background: #eeeeef;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 9px;
   font-style: normal;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .schedule-date-button.outside {
@@ -727,6 +730,34 @@ h3 {
   border-color: rgba(31, 122, 69, 0.22);
   background: var(--good-bg);
   color: var(--good);
+}
+
+.schedule-date-button.member-open,
+.schedule-date-button.member-open i {
+  border-color: rgba(0, 102, 204, 0.22);
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+.schedule-date-button.member-requested,
+.schedule-date-button.member-requested i {
+  border-color: rgba(138, 90, 0, 0.28);
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.schedule-date-button.member-confirmed,
+.schedule-date-button.member-confirmed i {
+  border-color: rgba(31, 122, 69, 0.32);
+  background: var(--good-bg);
+  color: var(--good);
+}
+
+.schedule-date-button.member-cancel,
+.schedule-date-button.member-cancel i {
+  border-color: rgba(191, 31, 24, 0.22);
+  background: var(--danger-bg);
+  color: var(--danger);
 }
 
 .schedule-date-button.blocked,
@@ -852,6 +883,64 @@ h3 {
 .schedule-slot-card .small-button,
 .schedule-slot-card .primary-button {
   min-height: 44px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.member-slot-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--row-radius);
+  background: var(--surface);
+}
+
+.member-slot-row.open {
+  border-color: rgba(0, 102, 204, 0.22);
+  background: var(--info-bg);
+}
+
+.member-slot-row.requested,
+.member-slot-row.cancel_requested {
+  border-color: rgba(138, 90, 0, 0.22);
+  background: var(--warn-bg);
+}
+
+.member-slot-row.confirmed {
+  border-color: rgba(31, 122, 69, 0.22);
+  background: var(--good-bg);
+}
+
+.member-slot-primary {
+  min-width: 0;
+}
+
+.member-slot-primary h3 {
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.18;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-slot-primary p {
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-slot-row .small-button,
+.member-slot-row .primary-button {
+  min-height: 40px;
   padding: 0 10px;
   font-size: 13px;
 }
