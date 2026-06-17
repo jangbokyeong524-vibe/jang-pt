@@ -57,5 +57,9 @@ assert(schema.includes("member_link_requests_one_open_request_per_auth_user_idx"
 assert(schema.includes("where status in ('pending', 'approved')"), "Open link request uniqueness must apply only to pending/approved states");
 assert(memberLinkActions.includes("rejectDuplicatePendingMemberLinkRequests"), "Approving a member link must close duplicate pending requests for the same auth user");
 assert(memberLinkActions.includes("이미 승인 대기 또는 승인된 요청이 있습니다."), "Duplicate open link requests must show a user-safe message");
+assert(app.includes("formatPhoneForInput"), "Member link phone input must format digits with hyphens while typing");
+assert(app.includes("inputMode=\"numeric\""), "Member link phone input should use a numeric keypad");
+assert(app.includes("autoComplete=\"tel-national\""), "Member link phone input should use phone autocomplete");
+assert(app.includes("aria-describedby=\"member-link-phone-help\""), "Member link phone input needs concise helper copy");
 
 console.log("Auth contract check passed.");

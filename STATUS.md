@@ -26,7 +26,7 @@ phase: member-link-approval-flow
 - Supabase project is connected, Google/Kakao providers are enabled, and reservation RPCs are visible through PostgREST.
 - Google Identity Services login, admin email allowlist bootstrap, and pending member link request creation are wired.
 - Member link approval is wired through `lib/member-link-actions.ts`.
-- Members now request linking with name and phone; pending/approved requests hide duplicate request entry and rejected requests can be retried.
+- Members now request linking with name and phone; phone input accepts digits and formats hyphens while typing, pending/approved requests hide duplicate request entry, and rejected requests can be retried.
 - Admin home and member screens read Supabase members/link requests, show the member-link approval section, and can approve to an existing phone match, create a new active member then approve, or reject.
 - Member link requests now enforce one open `pending`/`approved` request per auth user; approving one request closes duplicate pending requests for that account.
 - New member approval creates only the `members` row; PT passes remain manually registered from member detail.
@@ -67,6 +67,7 @@ phase: member-link-approval-flow
 
 ## Last Verified
 
+- 2026-06-17: Member link phone input auto-format contract verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, `git diff --check`, and direct `formatPhoneForInput` examples.
 - 2026-06-17: Member link duplicate-open-request guard verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-17: Member link approval home visibility contract verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-17: Member link approval static contract verified RED with `npm run check:layout` failing on missing `lib/member-link-actions.ts`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.

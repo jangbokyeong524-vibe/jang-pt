@@ -3134,6 +3134,32 @@ function normalizePhone(phone: string) {
   return phone.replace(/\D/g, "");
 }
 
+function formatPhoneForInput(phone: string) {
+  const digits = normalizePhone(phone).slice(0, 11);
+
+  if (digits.length <= 3) {
+    return digits;
+  }
+
+  if (digits.startsWith("02")) {
+    if (digits.length <= 5) {
+      return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+    }
+
+    if (digits.length <= 9) {
+      return `${digits.slice(0, 2)}-${digits.slice(2, digits.length - 4)}-${digits.slice(-4)}`;
+    }
+
+    return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6, 10)}`;
+  }
+
+  if (digits.length <= 7) {
+    return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  }
+
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
+
 function mergeMemberLinkRequests(
   currentRequests: MemberLinkRequest[],
   nextRequests: MemberLinkRequest[],
@@ -3297,11 +3323,15 @@ function MemberLinkPanel({
             <label>
               전화번호
               <input
-                inputMode="tel"
-                onChange={(event) => onPhoneChange(event.target.value)}
-                placeholder="010-0000-0000"
+                aria-describedby="member-link-phone-help"
+                autoComplete="tel-national"
+                inputMode="numeric"
+                maxLength={13}
+                onChange={(event) => onPhoneChange(formatPhoneForInput(event.target.value))}
+                placeholder="01012345678"
                 value={linkPhone}
               />
+              <small id="member-link-phone-help">숫자만 입력하면 하이픈은 자동으로 들어갑니다.</small>
             </label>
             {error ? <div className="auth-error">{error}</div> : null}
             <button className="primary-button" type="submit">

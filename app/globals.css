@@ -1084,6 +1084,13 @@ h3 {
   font-weight: 700;
 }
 
+.auth-form small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 .auth-form input {
   width: 100%;
 }

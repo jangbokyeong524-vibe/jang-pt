@@ -105,7 +105,7 @@ npm.cmd run dev
 시나리오:
 
 1. 관리자 allowlist가 아닌 Google 계정으로 로그인한다.
-2. 이름과 전화번호를 입력해 연결 요청을 보낸다.
+2. 이름과 전화번호를 입력해 연결 요청을 보낸다. 전화번호는 숫자만 입력해도 `010-0000-0000` 형태로 자동 표시되어야 한다.
 3. `member_link_requests`에 `display_name`, `input_phone`, `normalized_phone`, `status = pending`, `member_id = null` 요청이 생성된다.
 4. 같은 계정에 `pending` 또는 `approved` 요청이 있으면 앱이 추가 입력 폼 대신 현재 상태를 보여준다.
 5. 관리자 계정으로 로그인해 회원 메뉴의 `승인 대기` 목록에서 요청을 확인한다.
@@ -118,6 +118,7 @@ npm.cmd run dev
 
 - 승인 전 회원은 승인대기 상태만 본다.
 - 승인 전 PT권/결제/예약 정보는 보이지 않는다.
+- 전화번호 입력값은 하이픈 포함 표시값으로 보이지만 DB 매칭용 `normalized_phone`은 숫자만 저장된다.
 - 기존 회원 승인 시 요청의 `member_id`, `status = approved`, `approved_at`이 실제 Supabase DB에 반영된다.
 - 신규 회원 생성 승인 시 `members`에는 이름, 전화번호, 정규화 전화번호, `active` 상태, 빈 메모만 생성되고 PT권은 자동 생성되지 않는다.
 - 같은 계정의 `pending`/`approved` open 요청은 DB에 하나만 남는다.
@@ -128,7 +129,7 @@ npm.cmd run dev
 
 자동 확인:
 
-- `npm run check:layout`는 `lib/member-link-actions.ts`, 기존 회원 승인, 신규 회원 생성 승인, 반려 액션, 계정당 open 요청 unique index, 승인 시 중복 pending 정리 액션이 없으면 실패해야 한다.
+- `npm run check:layout`는 `lib/member-link-actions.ts`, 기존 회원 승인, 신규 회원 생성 승인, 반려 액션, 계정당 open 요청 unique index, 승인 시 중복 pending 정리 액션, 회원 전화번호 자동 하이픈 입력 계약이 없으면 실패해야 한다.
 
 ## 6. 예약 요청 테스트
 
