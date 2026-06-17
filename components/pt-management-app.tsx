@@ -3322,16 +3322,18 @@ function MemberLinkPanel({
             </label>
             <label>
               전화번호
-              <input
-                aria-describedby="member-link-phone-help"
-                autoComplete="tel-national"
-                inputMode="numeric"
-                maxLength={13}
-                onChange={(event) => onPhoneChange(formatPhoneForInput(event.target.value))}
-                placeholder="01012345678"
-                value={linkPhone}
-              />
-              <small id="member-link-phone-help">숫자만 입력하면 하이픈은 자동으로 들어갑니다.</small>
+              <span className="phone-input-frame">
+                <input
+                  aria-describedby="member-link-phone-help"
+                  autoComplete="tel-national"
+                  inputMode="numeric"
+                  maxLength={13}
+                  onChange={(event) => onPhoneChange(formatPhoneForInput(event.target.value))}
+                  placeholder="___-____-____"
+                  value={linkPhone}
+                />
+              </span>
+              <small id="member-link-phone-help">칸을 누르고 숫자만 입력하세요. 하이픈은 자동으로 들어갑니다.</small>
             </label>
             {error ? <div className="auth-error">{error}</div> : null}
             <button className="primary-button" type="submit">

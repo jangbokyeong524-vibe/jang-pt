@@ -1095,6 +1095,20 @@ h3 {
   width: 100%;
 }
 
+.phone-input-frame {
+  display: block;
+}
+
+.phone-input-frame input {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.phone-input-frame input::placeholder {
+  color: #8e8e93;
+  opacity: 1;
+}
+
 .auth-error {
   padding: 10px 12px;
   border: 1px solid rgba(179, 38, 30, 0.18);

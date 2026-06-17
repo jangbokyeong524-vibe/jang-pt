@@ -17,6 +17,7 @@ const supabaseServer = read("lib/supabase-server.ts");
 const memberLinkActions = read("lib/member-link-actions.ts");
 const schema = read("docs/supabase-schema.sql");
 const app = read("components/pt-management-app.tsx");
+const globalCss = read("app/globals.css");
 const callbackPage = read("app/auth/callback/page.tsx");
 const bootstrapRoute = read("app/api/auth/bootstrap-admin/route.ts");
 
@@ -61,5 +62,8 @@ assert(app.includes("formatPhoneForInput"), "Member link phone input must format
 assert(app.includes("inputMode=\"numeric\""), "Member link phone input should use a numeric keypad");
 assert(app.includes("autoComplete=\"tel-national\""), "Member link phone input should use phone autocomplete");
 assert(app.includes("aria-describedby=\"member-link-phone-help\""), "Member link phone input needs concise helper copy");
+assert(app.includes("placeholder=\"___-____-____\""), "Member link phone input should look like an empty phone mask before typing");
+assert(app.includes("phone-input-frame"), "Member link phone input should use a dedicated mask-style frame");
+assert(globalCss.includes(".phone-input-frame"), "Phone input mask frame must be styled");
 
 console.log("Auth contract check passed.");
