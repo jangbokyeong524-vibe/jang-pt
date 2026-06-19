@@ -29,8 +29,9 @@ phase: schedule-month-week-mode-simplified
 - Admin `일정` top toolbar is intentionally limited to two selects: `월 / 주` view and `전체 / PT / 오전반 / 초등부 / 일반부` schedule type.
 - `전체` and `PT` currently show the existing PT slot/reservation flow and keep approval/rejection/completion/late-cancel actions.
 - `오전반`, `초등부`, and `일반부` currently show only the empty class-schedule state. Group-class reservation, capacity, attendance, waitlist, and recurring timetable generation remain out of scope.
-- Member `예약` keeps the current PT reservation UX. Docs note a later `PT / 수업` direction for member scheduling.
-- Static layout contracts cover the two-select compact toolbar, `월 / 주` mode boundary, merged schedule type select, 7-day week strip, agenda-first ordering, month-only equal desktop split, and PT-only data boundary.
+- Admin and member selected-day schedule rows now emphasize `time range / status / action` and remove duplicate availability copy.
+- Member `예약` keeps the current PT reservation action flow. Docs note a later `PT / 수업` direction for member scheduling.
+- Static layout contracts cover the two-select compact toolbar, compressed time/status/action rows, `월 / 주` mode boundary, merged schedule type select, 7-day week strip, agenda-first ordering, month-only equal desktop split, and PT-only data boundary.
 
 ## Next Actions
 
@@ -46,4 +47,4 @@ phase: schedule-month-week-mode-simplified
 
 ## Last Verified
 
-- 2026-06-19: Schedule mode simplification verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
+- 2026-06-19: Schedule row compression verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.

@@ -52,13 +52,21 @@ assert(
   "schedule detail screens should show selected-day time slots as a list"
 );
 
-for (const className of ["schedule-slot-time", "schedule-slot-copy", "schedule-slot-meta"]) {
+for (const className of ["schedule-slot-time", "schedule-slot-status", "schedule-slot-meta"]) {
   assert(component.includes(`className="${className}"`), `schedule slot cards should include compact row structure: ${className}`);
 }
 
 assert(
-  /\.schedule-slot-card\s*\{[^}]*grid-template-columns:\s*auto\s+minmax\(0,\s*1fr\)\s+auto/s.test(css),
-  "schedule slot cards should use a compact time/title/meta row"
+  /\.schedule-slot-card\s*\{[^}]*grid-template-columns:\s*minmax\(92px,\s*auto\)\s+minmax\(0,\s*1fr\)\s+auto/s.test(css),
+  "schedule slot cards should use a compact time/status/action row"
+);
+
+assert(
+  !component.includes('className="schedule-slot-copy"') &&
+    !component.includes('className="member-slot-primary"') &&
+    !component.includes("memberSlotTitle(") &&
+    !component.includes("memberSlotDescription("),
+  "schedule rows should remove title/description copy and keep only time, status, and actions"
 );
 
 assert(
@@ -91,7 +99,7 @@ assert(
   "admin and member schedule calendars should declare their role variant"
 );
 
-for (const className of ["schedule-day-label", "member-slot-primary"]) {
+for (const className of ["schedule-day-label"]) {
   assert(component.includes(`className="${className}"`), `member schedule should include calendar-first/member-only structure: ${className}`);
 }
 

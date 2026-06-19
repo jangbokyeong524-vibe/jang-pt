@@ -969,7 +969,7 @@ h3 {
 .schedule-slot-card {
   min-width: 0;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(92px, auto) minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   min-height: 52px;
@@ -980,38 +980,18 @@ h3 {
 }
 
 .schedule-slot-time {
-  min-width: 70px;
+  min-width: 92px;
   color: var(--brand);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 800;
-  line-height: 1.18;
+  line-height: 1;
   white-space: nowrap;
 }
 
-.schedule-slot-copy {
+.schedule-slot-status {
   min-width: 0;
-}
-
-.schedule-slot-copy h3 {
-  overflow: hidden;
-  font-size: 14px;
-  line-height: 1.18;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.schedule-slot-card p:not(.eyebrow) {
-  margin-top: 2px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.28;
-}
-
-.schedule-slot-copy p {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
+  display: flex;
+  align-items: center;
 }
 
 .schedule-slot-meta {
@@ -1074,7 +1054,7 @@ h3 {
 .member-slot-row {
   min-width: 0;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(92px, auto) minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   min-height: 48px;
@@ -1098,28 +1078,6 @@ h3 {
 .member-slot-row.confirmed {
   border-color: rgba(31, 122, 69, 0.22);
   background: var(--good-bg);
-}
-
-.member-slot-primary {
-  min-width: 0;
-}
-
-.member-slot-primary h3 {
-  overflow: hidden;
-  font-size: 14px;
-  line-height: 1.18;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.member-slot-primary p {
-  overflow: hidden;
-  margin-top: 2px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .member-slot-row .small-button,

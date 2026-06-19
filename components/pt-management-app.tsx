@@ -1407,15 +1407,12 @@ function WeekSchedule({
       showWeekStrip={true}
       renderSlot={(slot, reservation) => {
         const status = reservation?.status ?? slot.status;
-        const label = reservation ? memberName(reservation.memberId) : slot.status === "blocked" ? "운영 차단" : "예약 가능";
 
         return (
           <ScheduleSlotCard
             key={slot.id}
             slot={slot}
             status={status}
-            title={label}
-            description={reservation ? statusLabels[reservation.status] : statusLabels[slot.status]}
           >
             {reservation?.status === "requested" && approveReservation && rejectReservation && (
               <div className="row-actions">
@@ -1597,25 +1594,19 @@ function MonthlySchedulePicker({
 function ScheduleSlotCard({
   slot,
   status,
-  title,
-  description,
   children
 }: {
   slot: AvailabilitySlot;
   status: string;
-  title: string;
-  description: string;
   children?: ReactNode;
 }) {
   return (
     <article className={`schedule-slot-card ${status}`}>
       <p className="schedule-slot-time">{timeRangeLabel(slot)}</p>
-      <div className="schedule-slot-copy">
-        <h3>{title}</h3>
-        <p>{description}</p>
+      <div className="schedule-slot-status">
+        <StatusPill value={status} />
       </div>
       <div className="schedule-slot-meta">
-        <StatusPill value={status} />
         {children}
       </div>
     </article>
@@ -1636,18 +1627,14 @@ function MemberScheduleSlotRow({
   requestCancel: (reservationId: string) => void;
 }) {
   const rowStatus = reservation?.status ?? slot.status;
-  const title = memberSlotTitle(slot, reservation);
-  const description = memberSlotDescription(slot, reservation);
 
   return (
     <article className={`member-slot-row ${rowStatus}`}>
       <p className="schedule-slot-time">{timeRangeLabel(slot)}</p>
-      <div className="member-slot-primary">
-        <h3>{title}</h3>
-        <p>{description}</p>
+      <div className="schedule-slot-status">
+        <StatusPill value={rowStatus} label={memberSlotStatusLabel(slot, reservation)} />
       </div>
       <div className="schedule-slot-meta">
-        <StatusPill value={rowStatus} label={memberSlotStatusLabel(slot, reservation)} />
         {!reservation && (
           <button className="primary-button" onClick={() => requestBooking(slot.id)} disabled={!canRequestBooking}>
             예약 요청
@@ -2845,38 +2832,6 @@ function memberReservationSummary(reservation: Reservation) {
   return statusLabels[reservation.status] ?? reservation.status;
 }
 
-function memberSlotTitle(slot: AvailabilitySlot, reservation?: Reservation) {
-  if (reservation?.status === "confirmed") {
-    return "내 예약";
-  }
-  if (reservation?.status === "requested") {
-    return "예약 요청 대기";
-  }
-  if (reservation?.status === "cancel_requested") {
-    return "취소 요청 확인 중";
-  }
-  if (slot.status === "open") {
-    return "예약 요청 가능";
-  }
-  return statusLabels[slot.status] ?? "예약 불가";
-}
-
-function memberSlotDescription(slot: AvailabilitySlot, reservation?: Reservation) {
-  if (reservation?.status === "confirmed") {
-    return "확정된 PT 시간입니다.";
-  }
-  if (reservation?.status === "requested") {
-    return "관장 승인 전까지 이 시간이 잠깁니다.";
-  }
-  if (reservation?.status === "cancel_requested") {
-    return "관장이 차감 여부를 확인 중입니다.";
-  }
-  if (slot.status === "open") {
-    return "예약 요청을 보낼 수 있습니다.";
-  }
-  return statusLabels[slot.status] ?? "예약할 수 없는 시간입니다.";
-}
-
 function memberSlotStatusLabel(slot: AvailabilitySlot, reservation?: Reservation) {
   if (reservation?.status === "confirmed") {
     return "확정";
@@ -3222,7 +3177,7 @@ function timeLabel(value: string) {
 }
 
 function timeRangeLabel(slot: AvailabilitySlot) {
-  return `${timeLabel(slot.startAt)} - ${timeLabel(slot.endAt)}`;
+  return `${timeLabel(slot.startAt)}-${timeLabel(slot.endAt)}`;
 }
 
 function dayDate(day: string) {
