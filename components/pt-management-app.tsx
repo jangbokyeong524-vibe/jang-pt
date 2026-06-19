@@ -1432,6 +1432,7 @@ function WeekSchedule({
       ariaLabel="예약 일정 달력"
       emptyLabel="해당 날짜에 등록된 시간이 없습니다."
       displayMode={scheduleViewMode}
+      showWeekStrip={true}
       renderSlot={(slot, reservation) => {
         const status = reservation?.status ?? slot.status;
         const label = reservation ? memberName(reservation.memberId) : slot.status === "blocked" ? "운영 차단" : "예약 가능";
@@ -1479,6 +1480,7 @@ function MonthlySchedulePicker({
   ariaLabel,
   emptyLabel,
   displayMode = "month",
+  showWeekStrip = false,
   renderSlot
 }: {
   slots: AvailabilitySlot[];
@@ -1487,6 +1489,7 @@ function MonthlySchedulePicker({
   ariaLabel: string;
   emptyLabel: string;
   displayMode?: ScheduleViewMode;
+  showWeekStrip?: boolean;
   renderSlot: (slot: AvailabilitySlot, reservation?: Reservation) => ReactNode;
 }) {
   const sortedSlots = useMemo(() => [...slots].sort((a, b) => a.startAt.localeCompare(b.startAt)), [slots]);
@@ -1537,29 +1540,31 @@ function MonthlySchedulePicker({
 
   return (
     <div className={`schedule-picker schedule-view-${displayMode} ${displayMode === "month" ? "schedule-month-first" : "schedule-agenda-first"}`}>
-      <section className="schedule-week-strip" aria-label="주간 날짜 선택">
-        {selectedWeekDays.map((day) => {
-          const daySlots = slotsByDay.get(day) ?? [];
-          const daySummary = getScheduleDaySummary(daySlots, reservationsBySlotId, variant);
+      {showWeekStrip && (
+        <section className="schedule-week-strip" aria-label="주간 날짜 선택">
+          {selectedWeekDays.map((day) => {
+            const daySlots = slotsByDay.get(day) ?? [];
+            const daySummary = getScheduleDaySummary(daySlots, reservationsBySlotId, variant);
 
-          return (
-            <button
-              className={`schedule-strip-day ${daySummary.status} ${selectedDay === day ? "selected" : ""}`}
-              type="button"
-              key={day}
-              onClick={() => {
-                setSelectedDay(day);
-                setVisibleMonth(monthKey(day));
-              }}
-              aria-pressed={selectedDay === day}
-            >
-              <span>{weekdayLabel(day)}</span>
-              <strong>{dayDate(day).getUTCDate()}</strong>
-              {daySummary.label && <i>{daySummary.label}</i>}
-            </button>
-          );
-        })}
-      </section>
+            return (
+              <button
+                className={`schedule-strip-day ${daySummary.status} ${selectedDay === day ? "selected" : ""}`}
+                type="button"
+                key={day}
+                onClick={() => {
+                  setSelectedDay(day);
+                  setVisibleMonth(monthKey(day));
+                }}
+                aria-pressed={selectedDay === day}
+              >
+                <span>{weekdayLabel(day)}</span>
+                <strong>{dayDate(day).getUTCDate()}</strong>
+                {daySummary.label && <i>{daySummary.label}</i>}
+              </button>
+            );
+          })}
+        </section>
+      )}
 
       <section className="schedule-calendar" aria-label={ariaLabel}>
         <div className="schedule-calendar-header">

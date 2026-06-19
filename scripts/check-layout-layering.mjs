@@ -150,6 +150,20 @@ assert(
 );
 
 assert(
+  component.includes("showWeekStrip") && component.includes("showWeekStrip={true}"),
+  "admin schedule should explicitly opt into the compact week strip"
+);
+
+const memberBookingViewForSchedule = component.slice(
+  component.indexOf("function MemberBookingView"),
+  component.indexOf("function MemberHistoryView")
+);
+assert(
+  memberBookingViewForSchedule.includes("MonthlySchedulePicker") && !memberBookingViewForSchedule.includes("showWeekStrip={true}"),
+  "member booking should keep the monthly calendar-first picker without the admin week strip"
+);
+
+assert(
   !component.includes("scheduleViewModeCopy") && !component.includes("schedule-mode-summary"),
   "admin schedule should not spend vertical space on verbose mode guidance"
 );
