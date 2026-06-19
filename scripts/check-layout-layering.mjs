@@ -4,6 +4,12 @@ const css = readFileSync("app/globals.css", "utf8");
 const component = readFileSync("components/pt-management-app.tsx", "utf8");
 
 const failures = [];
+const scheduleToolbarStart = component.indexOf('className="schedule-compact-toolbar"');
+const scheduleToolbarEnd = scheduleToolbarStart >= 0 ? component.indexOf("{showPtSchedule", scheduleToolbarStart) : -1;
+const scheduleToolbar =
+  scheduleToolbarStart >= 0 && scheduleToolbarEnd > scheduleToolbarStart
+    ? component.slice(scheduleToolbarStart, scheduleToolbarEnd)
+    : "";
 
 function assert(condition, message) {
   if (!condition) {
@@ -145,8 +151,15 @@ assert(
 );
 
 assert(
-  component.includes("scheduleToolbarMode") && component.includes("schedule-compact-toolbar"),
-  "admin schedule should use a compact toolbar instead of large mode controls"
+  component.includes("schedule-compact-toolbar") &&
+    component.includes('aria-label="일정 보기"') &&
+    component.includes('aria-label="일정 타입"'),
+  "admin schedule toolbar should use two selects for view and schedule type"
+);
+
+assert(
+  scheduleToolbar.split("<select").length - 1 === 2 && !scheduleToolbar.includes("<button"),
+  "admin schedule toolbar should contain exactly two selects and no filter buttons"
 );
 
 assert(
@@ -174,8 +187,12 @@ assert(
 );
 
 assert(
-  component.includes("primaryScheduleTypeFilters") && component.includes("secondaryScheduleTypeFilters"),
-  "schedule type filters should split current PT filters from future class filters"
+  !component.includes("scheduleToolbarMode") &&
+    !component.includes("schedule-current-mode") &&
+    !component.includes("primaryScheduleTypeFilters") &&
+    !component.includes("secondaryScheduleTypeFilters") &&
+    !component.includes("schedule-primary-filters"),
+  "schedule toolbar should not keep duplicate mode text, direct filter buttons, or secondary class filters"
 );
 
 for (const className of ["schedule-view-month", "schedule-view-week"]) {
@@ -208,8 +225,10 @@ for (const label of ["전체", "PT", "오전반", "초등부", "일반부"]) {
 }
 
 assert(
-  component.includes('aria-label="주요 일정 타입"') && component.includes('aria-label="수업 타입 필터"'),
-  "schedule type filters should expose direct PT filters and a compact class selector"
+  component.includes('aria-label="일정 타입"') &&
+    !component.includes('aria-label="주요 일정 타입"') &&
+    !component.includes('aria-label="수업 타입 필터"'),
+  "schedule type filters should be merged into one schedule type select"
 );
 
 assert(

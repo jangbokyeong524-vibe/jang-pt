@@ -492,9 +492,9 @@ h3 {
 .schedule-compact-toolbar {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(82px, auto) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
   gap: 8px;
-  align-items: end;
+  align-items: center;
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: var(--row-radius);
@@ -502,46 +502,17 @@ h3 {
   box-shadow: var(--shadow);
 }
 
-.schedule-compact-toolbar > div:first-child {
+.schedule-select-field {
   min-width: 0;
   display: grid;
-  grid-template-columns: auto minmax(64px, 1fr);
-  gap: 6px;
-  align-items: center;
-}
-
-.schedule-compact-toolbar .eyebrow {
-  grid-column: 1 / -1;
-}
-
-.schedule-current-mode {
-  font-size: 14px;
-  line-height: 1;
 }
 
 .schedule-compact-toolbar select {
+  width: 100%;
   min-width: 0;
   min-height: 40px;
   max-width: 100%;
   padding: 0 9px;
-}
-
-.schedule-primary-filters {
-  min-width: 0;
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.schedule-primary-filters .small-button.active {
-  color: #fff;
-  border-color: var(--brand);
-  background: var(--brand);
-}
-
-.schedule-primary-filters select {
-  flex: 0 1 104px;
 }
 
 .schedule-view-month,

@@ -136,14 +136,6 @@ const scheduleTypeFilters: Array<{ value: ScheduleTypeFilter; label: string }> =
 
 const ptVisibleScheduleTypes: ScheduleTypeFilter[] = ["all", "pt"];
 
-const scheduleToolbarMode: Record<ScheduleViewMode, string> = {
-  month: "월",
-  week: "주"
-};
-
-const primaryScheduleTypeFilters = scheduleTypeFilters.filter((option) => option.value === "all" || option.value === "pt");
-const secondaryScheduleTypeFilters = scheduleTypeFilters.filter((option) => option.value !== "all" && option.value !== "pt");
-
 const csvDatasetOptions: Array<{ key: CsvDatasetKey; label: string }> = [
   { key: "members", label: "회원" },
   { key: "memberLinkRequests", label: "회원 연결 요청" },
@@ -1331,9 +1323,7 @@ function ScheduleView({
         <CalendarDays size={20} />
       </div>
       <div className="schedule-compact-toolbar" aria-label="일정 보기 설정">
-        <div>
-          <p className="eyebrow">보기</p>
-          <strong className="schedule-current-mode">{scheduleToolbarMode[scheduleViewMode]}</strong>
+        <div className="schedule-select-field">
           <select
             aria-label="일정 보기"
             value={scheduleViewMode}
@@ -1346,29 +1336,13 @@ function ScheduleView({
             ))}
           </select>
         </div>
-        <div className="schedule-primary-filters" aria-label="주요 일정 타입">
-          {primaryScheduleTypeFilters.map((option) => (
-            <button
-              className={scheduleTypeFilter === option.value ? "small-button active" : "small-button"}
-              key={option.value}
-              type="button"
-              onClick={() => setScheduleTypeFilter(option.value)}
-              aria-pressed={scheduleTypeFilter === option.value}
-            >
-              {option.label}
-            </button>
-          ))}
+        <div className="schedule-select-field">
           <select
-            aria-label="수업 타입 필터"
-            value={ptVisibleScheduleTypes.includes(scheduleTypeFilter) ? "" : scheduleTypeFilter}
-            onChange={(event) => {
-              if (event.target.value) {
-                setScheduleTypeFilter(event.target.value as ScheduleTypeFilter);
-              }
-            }}
+            aria-label="일정 타입"
+            value={scheduleTypeFilter}
+            onChange={(event) => setScheduleTypeFilter(event.target.value as ScheduleTypeFilter)}
           >
-            <option value="">수업</option>
-            {secondaryScheduleTypeFilters.map((option) => (
+            {scheduleTypeFilters.map((option) => (
               <option value={option.value} key={option.value}>
                 {option.label}
               </option>

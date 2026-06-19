@@ -26,11 +26,11 @@ phase: schedule-month-week-mode-simplified
 - Admin tabs are now `홈 / 일정 / 회원 / 설정`.
 - Admin `일정` is a unified compact schedule screen with `월 / 주` view selection and agenda-first PT handling.
 - Admin `일정` now uses a compact agenda-first layout: the week strip stays directly under the toolbar, selected-day time slots are the main body, and the month calendar appears as the explicit month view.
-- Future class filters are compacted behind the class type selector while `전체` and `PT` stay directly available.
+- Admin `일정` top toolbar is intentionally limited to two selects: `월 / 주` view and `전체 / PT / 오전반 / 초등부 / 일반부` schedule type.
 - `전체` and `PT` currently show the existing PT slot/reservation flow and keep approval/rejection/completion/late-cancel actions.
 - `오전반`, `초등부`, and `일반부` currently show only the empty class-schedule state. Group-class reservation, capacity, attendance, waitlist, and recurring timetable generation remain out of scope.
 - Member `예약` keeps the current PT reservation UX. Docs note a later `PT / 수업` direction for member scheduling.
-- Static layout contracts cover the compact toolbar, `월 / 주` mode boundary, split PT/class filters, 7-day week strip, agenda-first ordering, month-only equal desktop split, and PT-only data boundary.
+- Static layout contracts cover the two-select compact toolbar, `월 / 주` mode boundary, merged schedule type select, 7-day week strip, agenda-first ordering, month-only equal desktop split, and PT-only data boundary.
 
 ## Next Actions
 
