@@ -140,8 +140,23 @@ for (const label of ["월", "주", "일"]) {
 }
 
 assert(
-  component.includes("scheduleViewModeCopy") && component.includes("schedule-mode-summary"),
-  "schedule view switch should expose visible mode-specific guidance"
+  component.includes("scheduleToolbarMode") && component.includes("schedule-compact-toolbar"),
+  "admin schedule should use a compact toolbar instead of large mode controls"
+);
+
+assert(
+  component.includes("schedule-week-strip") && component.includes("schedule-strip-day"),
+  "admin schedule should expose a compact 7-day date strip"
+);
+
+assert(
+  !component.includes("scheduleViewModeCopy") && !component.includes("schedule-mode-summary"),
+  "admin schedule should not spend vertical space on verbose mode guidance"
+);
+
+assert(
+  component.includes("primaryScheduleTypeFilters") && component.includes("secondaryScheduleTypeFilters"),
+  "schedule type filters should split current PT filters from future class filters"
 );
 
 for (const className of ["schedule-view-month", "schedule-view-week", "schedule-view-day"]) {
@@ -149,16 +164,19 @@ for (const className of ["schedule-view-month", "schedule-view-week", "schedule-
 }
 
 assert(
-  /\.schedule-view-day\s+\.schedule-time-list\s*\{[^}]*order:\s*1/s.test(css) &&
-    /\.schedule-view-day\s+\.schedule-calendar\s*\{[^}]*order:\s*2/s.test(css),
-  "day schedule view should put the selected-day time list ahead of the calendar"
+  /\.schedule-agenda-first\s+\.schedule-week-strip\s*\{[^}]*order:\s*1/s.test(css) &&
+    /\.schedule-agenda-first\s+\.schedule-time-list\s*\{[^}]*order:\s*2/s.test(css),
+  "agenda-first schedule should keep the week strip above the selected-day time list"
 );
 
 assert(
-  /@media[^{]*\(min-width:\s*1101px\)[\s\S]*?\.schedule-view-month\s*\{[^}]*grid-template-columns:\s*minmax\(320px,\s*1\.15fr\)\s+minmax\(260px,\s*0\.85fr\)/s.test(css) &&
-    /@media[^{]*\(min-width:\s*1101px\)[\s\S]*?\.schedule-view-week\s*\{[^}]*grid-template-columns:\s*minmax\(280px,\s*0\.8fr\)\s+minmax\(0,\s*1\.2fr\)/s.test(css) &&
-    /@media[^{]*\(min-width:\s*1101px\)[\s\S]*?\.schedule-view-day\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s.test(css),
-  "desktop month/week/day schedule views should use distinct grid proportions"
+  /\.schedule-week-strip\s*\{[^}]*grid-template-columns:\s*repeat\(7,\s*minmax\(0,\s*1fr\)\)/s.test(css),
+  "week strip should be a fixed seven-day grid"
+);
+
+assert(
+  /@media[^{]*\(min-width:\s*1101px\)[\s\S]*?\.schedule-view-month\s*\{[^}]*grid-template-columns:\s*minmax\(320px,\s*1fr\)\s+minmax\(320px,\s*1fr\)/s.test(css),
+  "month mode should be the only desktop mode that gives the calendar equal primary space"
 );
 
 for (const label of ["전체", "PT", "오전반", "초등부", "일반부"]) {
@@ -166,9 +184,8 @@ for (const label of ["전체", "PT", "오전반", "초등부", "일반부"]) {
 }
 
 assert(
-  /\.schedule-type-filter\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s.test(css) &&
-    /@media[^{]*\(min-width:\s*721px\)[\s\S]*?\.schedule-type-filter\s*\{[^}]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/s.test(css),
-  "schedule type filter should wrap on mobile and fit five columns from tablet width"
+  component.includes('aria-label="주요 일정 타입"') && component.includes('aria-label="수업 타입 필터"'),
+  "schedule type filters should expose direct PT filters and a compact class selector"
 );
 
 assert(

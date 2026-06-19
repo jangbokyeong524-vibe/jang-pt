@@ -137,20 +137,14 @@ const scheduleTypeFilters: Array<{ value: ScheduleTypeFilter; label: string }> =
 
 const ptVisibleScheduleTypes: ScheduleTypeFilter[] = ["all", "pt"];
 
-const scheduleViewModeCopy: Record<ScheduleViewMode, { title: string; body: string }> = {
-  month: {
-    title: "월간 달력 중심",
-    body: "월 전체 운영일을 먼저 훑고 선택한 날짜의 PT 시간을 확인합니다."
-  },
-  week: {
-    title: "주간 운영 기본",
-    body: "날짜 선택과 시간별 승인/완료 처리를 같은 비중으로 봅니다."
-  },
-  day: {
-    title: "일간 시간표 집중",
-    body: "선택 날짜의 시간 목록을 먼저 보고 필요한 예약 처리를 빠르게 진행합니다."
-  }
+const scheduleToolbarMode: Record<ScheduleViewMode, string> = {
+  month: "월",
+  week: "주",
+  day: "일"
 };
+
+const primaryScheduleTypeFilters = scheduleTypeFilters.filter((option) => option.value === "all" || option.value === "pt");
+const secondaryScheduleTypeFilters = scheduleTypeFilters.filter((option) => option.value !== "all" && option.value !== "pt");
 
 const csvDatasetOptions: Array<{ key: CsvDatasetKey; label: string }> = [
   { key: "members", label: "회원" },
@@ -1338,24 +1332,26 @@ function ScheduleView({
         </div>
         <CalendarDays size={20} />
       </div>
-      <div className="schedule-shell-controls" aria-label="일정 보기 설정">
-        <div className="schedule-control-group" role="tablist" aria-label="보기 전환">
-          {scheduleViewOptions.map((option) => (
-            <button
-              className={scheduleViewMode === option.value ? "segmented active" : "segmented"}
-              key={option.value}
-              type="button"
-              onClick={() => setScheduleViewMode(option.value)}
-              aria-pressed={scheduleViewMode === option.value}
-            >
-              {option.label}
-            </button>
-          ))}
+      <div className="schedule-compact-toolbar" aria-label="일정 보기 설정">
+        <div>
+          <p className="eyebrow">보기</p>
+          <strong className="schedule-current-mode">{scheduleToolbarMode[scheduleViewMode]}</strong>
+          <select
+            aria-label="일정 보기"
+            value={scheduleViewMode}
+            onChange={(event) => setScheduleViewMode(event.target.value as ScheduleViewMode)}
+          >
+            {scheduleViewOptions.map((option) => (
+              <option value={option.value} key={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="schedule-control-group schedule-type-filter" role="tablist" aria-label="일정 타입 필터">
-          {scheduleTypeFilters.map((option) => (
+        <div className="schedule-primary-filters" aria-label="주요 일정 타입">
+          {primaryScheduleTypeFilters.map((option) => (
             <button
-              className={scheduleTypeFilter === option.value ? "segmented active" : "segmented"}
+              className={scheduleTypeFilter === option.value ? "small-button active" : "small-button"}
               key={option.value}
               type="button"
               onClick={() => setScheduleTypeFilter(option.value)}
@@ -1364,11 +1360,23 @@ function ScheduleView({
               {option.label}
             </button>
           ))}
+          <select
+            aria-label="수업 타입 필터"
+            value={ptVisibleScheduleTypes.includes(scheduleTypeFilter) ? "" : scheduleTypeFilter}
+            onChange={(event) => {
+              if (event.target.value) {
+                setScheduleTypeFilter(event.target.value as ScheduleTypeFilter);
+              }
+            }}
+          >
+            <option value="">수업</option>
+            {secondaryScheduleTypeFilters.map((option) => (
+              <option value={option.value} key={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
-      </div>
-      <div className={`schedule-mode-summary schedule-mode-summary-${scheduleViewMode}`} aria-live="polite">
-        <strong>{scheduleViewModeCopy[scheduleViewMode].title}</strong>
-        <span>{scheduleViewModeCopy[scheduleViewMode].body}</span>
       </div>
       {showPtSchedule ? (
         <WeekSchedule
@@ -1515,6 +1523,7 @@ function MonthlySchedulePicker({
   const calendarDays = useMemo(() => buildMonthlyCalendarDays(visibleMonth), [visibleMonth]);
   const selectedSlots = slotsByDay.get(selectedDay) ?? [];
   const scheduleDaySummary = getScheduleDaySummary(selectedSlots, reservationsBySlotId, variant);
+  const selectedWeekDays = useMemo(() => buildWeekStripDays(selectedDay), [selectedDay]);
 
   function moveMonth(delta: number) {
     const currentMonth = dayDate(`${visibleMonth}-01`);
@@ -1527,7 +1536,31 @@ function MonthlySchedulePicker({
   }
 
   return (
-    <div className={`schedule-picker schedule-view-${displayMode}`}>
+    <div className={`schedule-picker schedule-view-${displayMode} ${displayMode === "month" ? "schedule-month-first" : "schedule-agenda-first"}`}>
+      <section className="schedule-week-strip" aria-label="주간 날짜 선택">
+        {selectedWeekDays.map((day) => {
+          const daySlots = slotsByDay.get(day) ?? [];
+          const daySummary = getScheduleDaySummary(daySlots, reservationsBySlotId, variant);
+
+          return (
+            <button
+              className={`schedule-strip-day ${daySummary.status} ${selectedDay === day ? "selected" : ""}`}
+              type="button"
+              key={day}
+              onClick={() => {
+                setSelectedDay(day);
+                setVisibleMonth(monthKey(day));
+              }}
+              aria-pressed={selectedDay === day}
+            >
+              <span>{weekdayLabel(day)}</span>
+              <strong>{dayDate(day).getUTCDate()}</strong>
+              {daySummary.label && <i>{daySummary.label}</i>}
+            </button>
+          );
+        })}
+      </section>
+
       <section className="schedule-calendar" aria-label={ariaLabel}>
         <div className="schedule-calendar-header">
           <button className="icon-button" type="button" onClick={() => moveMonth(-1)} aria-label="이전 달">
@@ -3099,6 +3132,19 @@ function buildMonthlyCalendarDays(month: string) {
   const start = addDays(firstOfMonth, -firstWeekday);
 
   return Array.from({ length: 42 }, (_, index) => addDays(start, index).toISOString().slice(0, 10));
+}
+
+function buildWeekStripDays(day: string) {
+  const selected = dayDate(day);
+  const mondayOffset = (selected.getUTCDay() + 6) % 7;
+  const monday = new Date(selected);
+  monday.setUTCDate(selected.getUTCDate() - mondayOffset);
+
+  return Array.from({ length: 7 }, (_item, index) => {
+    const current = new Date(monday);
+    current.setUTCDate(monday.getUTCDate() + index);
+    return current.toISOString().slice(0, 10);
+  });
 }
 
 function getScheduleDaySummary(
