@@ -61,7 +61,7 @@ import {
 type AdminTab = "home" | "week" | "members" | "settings";
 type MemberTab = "home" | "booking" | "history";
 type AuthStatus = "checking" | "signedOut" | "admin" | "member" | "memberPending" | "demo" | "error";
-type ScheduleViewMode = "month" | "week" | "day";
+type ScheduleViewMode = "month" | "week";
 type ScheduleTypeFilter = "all" | "pt" | "morning" | "elementary" | "general";
 type GoogleCredentialResponse = {
   credential?: string;
@@ -123,8 +123,7 @@ const paymentOrder: PaymentStatus[] = [
 
 const scheduleViewOptions: Array<{ value: ScheduleViewMode; label: string }> = [
   { value: "month", label: "월" },
-  { value: "week", label: "주" },
-  { value: "day", label: "일" }
+  { value: "week", label: "주" }
 ];
 
 const scheduleTypeFilters: Array<{ value: ScheduleTypeFilter; label: string }> = [
@@ -139,8 +138,7 @@ const ptVisibleScheduleTypes: ScheduleTypeFilter[] = ["all", "pt"];
 
 const scheduleToolbarMode: Record<ScheduleViewMode, string> = {
   month: "월",
-  week: "주",
-  day: "일"
+  week: "주"
 };
 
 const primaryScheduleTypeFilters = scheduleTypeFilters.filter((option) => option.value === "all" || option.value === "pt");

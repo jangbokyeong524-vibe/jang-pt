@@ -2,7 +2,7 @@
 
 updated: 2026-06-19
 mode: codex-resume-index
-phase: compact-schedule-ui-plan-executed
+phase: schedule-month-week-mode-simplified
 
 ## Rules
 
@@ -24,13 +24,13 @@ phase: compact-schedule-ui-plan-executed
 - Supabase Auth/RLS and reservation/member-link RPC boundaries are partially wired, with local fallback behavior when Supabase env is missing.
 - Admin/member screens use bottom tabs.
 - Admin tabs are now `홈 / 일정 / 회원 / 설정`.
-- Admin `일정` is a unified compact schedule screen with `월 / 주 / 일` view selection and agenda-first PT handling.
+- Admin `일정` is a unified compact schedule screen with `월 / 주` view selection and agenda-first PT handling.
 - Admin `일정` now uses a compact agenda-first layout: the week strip stays directly under the toolbar, selected-day time slots are the main body, and the month calendar appears as the explicit month view.
 - Future class filters are compacted behind the class type selector while `전체` and `PT` stay directly available.
 - `전체` and `PT` currently show the existing PT slot/reservation flow and keep approval/rejection/completion/late-cancel actions.
 - `오전반`, `초등부`, and `일반부` currently show only the empty class-schedule state. Group-class reservation, capacity, attendance, waitlist, and recurring timetable generation remain out of scope.
 - Member `예약` keeps the current PT reservation UX. Docs note a later `PT / 수업` direction for member scheduling.
-- Static layout contracts cover the compact toolbar, split PT/class filters, 7-day week strip, agenda-first ordering, month-only equal desktop split, and PT-only data boundary.
+- Static layout contracts cover the compact toolbar, `월 / 주` mode boundary, split PT/class filters, 7-day week strip, agenda-first ordering, month-only equal desktop split, and PT-only data boundary.
 
 ## Next Actions
 
@@ -46,4 +46,4 @@ phase: compact-schedule-ui-plan-executed
 
 ## Last Verified
 
-- 2026-06-19: Compact schedule UI contract verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
+- 2026-06-19: Schedule mode simplification verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.

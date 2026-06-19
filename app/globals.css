@@ -545,8 +545,7 @@ h3 {
 }
 
 .schedule-view-month,
-.schedule-view-week,
-.schedule-view-day {
+.schedule-view-week {
   align-items: start;
 }
 
@@ -648,8 +647,7 @@ h3 {
   order: 3;
 }
 
-.schedule-view-week .schedule-calendar,
-.schedule-view-day .schedule-calendar {
+.schedule-view-week .schedule-calendar {
   display: none;
 }
 
@@ -2236,8 +2234,7 @@ textarea {
     grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
   }
 
-  .schedule-view-week,
-  .schedule-view-day {
+  .schedule-view-week {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -2250,8 +2247,7 @@ textarea {
     grid-column: 1 / -1;
   }
 
-  .schedule-view-week .schedule-time-list,
-  .schedule-view-day .schedule-time-list {
+  .schedule-view-week .schedule-time-list {
     min-height: 420px;
   }
 

@@ -135,9 +135,14 @@ assert(
   "admin bottom tabs should label the schedule tab as 일정"
 );
 
-for (const label of ["월", "주", "일"]) {
+for (const label of ["월", "주"]) {
   assert(component.includes(`label: "${label}"`), `schedule view switch should include ${label}`);
 }
+
+assert(
+  !component.includes('label: "일"') && !component.includes('day: "일"') && !component.includes('"day" |'),
+  "schedule view switch should not include a separate day mode"
+);
 
 assert(
   component.includes("scheduleToolbarMode") && component.includes("schedule-compact-toolbar"),
@@ -173,9 +178,14 @@ assert(
   "schedule type filters should split current PT filters from future class filters"
 );
 
-for (const className of ["schedule-view-month", "schedule-view-week", "schedule-view-day"]) {
+for (const className of ["schedule-view-month", "schedule-view-week"]) {
   assert(css.includes(`.${className}`), `schedule view mode should have real CSS layout: ${className}`);
 }
+
+assert(
+  !css.includes(".schedule-view-day"),
+  "schedule CSS should not keep a dead day mode layout"
+);
 
 assert(
   /\.schedule-agenda-first\s+\.schedule-week-strip\s*\{[^}]*order:\s*1/s.test(css) &&
