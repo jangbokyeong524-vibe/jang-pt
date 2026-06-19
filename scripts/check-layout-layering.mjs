@@ -139,9 +139,37 @@ for (const label of ["월", "주", "일"]) {
   assert(component.includes(`label: "${label}"`), `schedule view switch should include ${label}`);
 }
 
+assert(
+  component.includes("scheduleViewModeCopy") && component.includes("schedule-mode-summary"),
+  "schedule view switch should expose visible mode-specific guidance"
+);
+
+for (const className of ["schedule-view-month", "schedule-view-week", "schedule-view-day"]) {
+  assert(css.includes(`.${className}`), `schedule view mode should have real CSS layout: ${className}`);
+}
+
+assert(
+  /\.schedule-view-day\s+\.schedule-time-list\s*\{[^}]*order:\s*1/s.test(css) &&
+    /\.schedule-view-day\s+\.schedule-calendar\s*\{[^}]*order:\s*2/s.test(css),
+  "day schedule view should put the selected-day time list ahead of the calendar"
+);
+
+assert(
+  /@media[^{]*\(min-width:\s*1101px\)[\s\S]*?\.schedule-view-month\s*\{[^}]*grid-template-columns:\s*minmax\(320px,\s*1\.15fr\)\s+minmax\(260px,\s*0\.85fr\)/s.test(css) &&
+    /@media[^{]*\(min-width:\s*1101px\)[\s\S]*?\.schedule-view-week\s*\{[^}]*grid-template-columns:\s*minmax\(280px,\s*0\.8fr\)\s+minmax\(0,\s*1\.2fr\)/s.test(css) &&
+    /@media[^{]*\(min-width:\s*1101px\)[\s\S]*?\.schedule-view-day\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s.test(css),
+  "desktop month/week/day schedule views should use distinct grid proportions"
+);
+
 for (const label of ["전체", "PT", "오전반", "초등부", "일반부"]) {
   assert(component.includes(`label: "${label}"`), `schedule type filter should include ${label}`);
 }
+
+assert(
+  /\.schedule-type-filter\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s.test(css) &&
+    /@media[^{]*\(min-width:\s*721px\)[\s\S]*?\.schedule-type-filter\s*\{[^}]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/s.test(css),
+  "schedule type filter should wrap on mobile and fit five columns from tablet width"
+);
 
 assert(
   component.includes('const ptVisibleScheduleTypes: ScheduleTypeFilter[] = ["all", "pt"];'),

@@ -478,7 +478,7 @@ h3 {
 }
 
 .schedule-type-filter {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .schedule-control-group .segmented {
@@ -487,6 +487,44 @@ h3 {
   padding: 0 6px;
   font-size: 12px;
   white-space: nowrap;
+}
+
+.schedule-mode-summary {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--row-radius);
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: var(--shadow);
+}
+
+.schedule-mode-summary strong {
+  font-size: 14px;
+  line-height: 1.22;
+}
+
+.schedule-mode-summary span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.schedule-view-month,
+.schedule-view-week,
+.schedule-view-day {
+  align-items: start;
+}
+
+.schedule-view-day .schedule-time-list {
+  order: 1;
+  border-color: rgba(0, 102, 204, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(0, 102, 204, 0.08);
+}
+
+.schedule-view-day .schedule-calendar {
+  order: 2;
 }
 
 .schedule-class-empty {
@@ -1935,6 +1973,10 @@ textarea {
     grid-template-columns: repeat(2, minmax(108px, 1fr));
   }
 
+  .schedule-type-filter {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
   .available-grid,
   .csv-option-grid,
   .metric-grid,
@@ -2064,10 +2106,25 @@ textarea {
     font-size: 13px;
   }
 
-  .schedule-picker {
+  .schedule-view-month {
+    grid-template-columns: minmax(320px, 1.15fr) minmax(260px, 0.85fr);
+  }
+
+  .schedule-view-week {
     grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
+  }
+
+  .schedule-view-day {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .schedule-picker {
     align-items: start;
     gap: 12px;
+  }
+
+  .schedule-view-day .schedule-time-list {
+    min-height: 360px;
   }
 
   .schedule-calendar,

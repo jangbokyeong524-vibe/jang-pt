@@ -137,6 +137,21 @@ const scheduleTypeFilters: Array<{ value: ScheduleTypeFilter; label: string }> =
 
 const ptVisibleScheduleTypes: ScheduleTypeFilter[] = ["all", "pt"];
 
+const scheduleViewModeCopy: Record<ScheduleViewMode, { title: string; body: string }> = {
+  month: {
+    title: "월간 달력 중심",
+    body: "월 전체 운영일을 먼저 훑고 선택한 날짜의 PT 시간을 확인합니다."
+  },
+  week: {
+    title: "주간 운영 기본",
+    body: "날짜 선택과 시간별 승인/완료 처리를 같은 비중으로 봅니다."
+  },
+  day: {
+    title: "일간 시간표 집중",
+    body: "선택 날짜의 시간 목록을 먼저 보고 필요한 예약 처리를 빠르게 진행합니다."
+  }
+};
+
 const csvDatasetOptions: Array<{ key: CsvDatasetKey; label: string }> = [
   { key: "members", label: "회원" },
   { key: "memberLinkRequests", label: "회원 연결 요청" },
@@ -1350,6 +1365,10 @@ function ScheduleView({
             </button>
           ))}
         </div>
+      </div>
+      <div className={`schedule-mode-summary schedule-mode-summary-${scheduleViewMode}`} aria-live="polite">
+        <strong>{scheduleViewModeCopy[scheduleViewMode].title}</strong>
+        <span>{scheduleViewModeCopy[scheduleViewMode].body}</span>
       </div>
       {showPtSchedule ? (
         <WeekSchedule

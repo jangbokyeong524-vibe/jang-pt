@@ -2,7 +2,7 @@
 
 updated: 2026-06-19
 mode: codex-resume-index
-phase: integrated-schedule-shell
+phase: schedule-view-mode-hardening
 
 ## Rules
 
@@ -24,11 +24,12 @@ phase: integrated-schedule-shell
 - Supabase Auth/RLS and reservation/member-link RPC boundaries are partially wired, with local fallback behavior when Supabase env is missing.
 - Admin/member screens use bottom tabs.
 - Admin tabs are now `홈 / 일정 / 회원 / 설정`.
-- Admin `일정` is a unified schedule shell with `월 / 주 / 일` view controls and `전체 / PT / 오전반 / 초등부 / 일반부` type filters.
+- Admin `일정` is a unified schedule screen with `월 / 주 / 일` view controls and `전체 / PT / 오전반 / 초등부 / 일반부` type filters.
+- `월 / 주 / 일` modes now expose visible mode guidance and distinct layout behavior: month favors the calendar, week keeps calendar/time-list balance, and day prioritizes the selected-day time list.
 - `전체` and `PT` currently show the existing PT slot/reservation flow and keep approval/rejection/completion/late-cancel actions.
 - `오전반`, `초등부`, and `일반부` currently show only the empty class-schedule state. Group-class reservation, capacity, attendance, waitlist, and recurring timetable generation remain out of scope.
 - Member `예약` keeps the current PT reservation UX. Docs note a later `PT / 수업` direction for member scheduling.
-- Static layout contracts cover the schedule shell labels, filters, and PT-only data boundary for the current shell.
+- Static layout contracts cover the schedule labels, filters, mode guidance, mode-specific layout CSS, mobile filter wrapping, and PT-only data boundary.
 
 ## Next Actions
 
@@ -44,4 +45,4 @@ phase: integrated-schedule-shell
 
 ## Last Verified
 
-- 2026-06-19: Integrated schedule shell contract verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
+- 2026-06-19: Schedule mode hardening contract verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
