@@ -131,6 +131,30 @@ assert(
 );
 
 assert(
+  component.includes('label="일정"'),
+  "admin bottom tabs should label the schedule tab as 일정"
+);
+
+for (const label of ["월", "주", "일"]) {
+  assert(component.includes(`label: "${label}"`), `schedule view switch should include ${label}`);
+}
+
+for (const label of ["전체", "PT", "오전반", "초등부", "일반부"]) {
+  assert(component.includes(`label: "${label}"`), `schedule type filter should include ${label}`);
+}
+
+assert(
+  component.includes('const ptVisibleScheduleTypes: ScheduleTypeFilter[] = ["all", "pt"];'),
+  "only 전체/PT filters should render PT reservation data in this shell"
+);
+
+assert(
+  component.includes("아직 등록된 수업 일정이 없습니다.") &&
+    component.includes("설정에서 프로그램 운영 시간을 추가하면 여기에 표시됩니다."),
+  "general class filters should render the class schedule empty state"
+);
+
+assert(
   !component.includes("SummaryView") && !component.includes("buildCrmSummary"),
   "CRM summary view/helper must be removed in favor of settings CSV export"
 );

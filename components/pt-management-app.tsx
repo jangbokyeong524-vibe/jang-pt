@@ -61,6 +61,8 @@ import {
 type AdminTab = "home" | "week" | "members" | "settings";
 type MemberTab = "home" | "booking" | "history";
 type AuthStatus = "checking" | "signedOut" | "admin" | "member" | "memberPending" | "demo" | "error";
+type ScheduleViewMode = "month" | "week" | "day";
+type ScheduleTypeFilter = "all" | "pt" | "morning" | "elementary" | "general";
 type GoogleCredentialResponse = {
   credential?: string;
 };
@@ -118,6 +120,22 @@ const paymentOrder: PaymentStatus[] = [
   "paid",
   "refunded"
 ];
+
+const scheduleViewOptions: Array<{ value: ScheduleViewMode; label: string }> = [
+  { value: "month", label: "월" },
+  { value: "week", label: "주" },
+  { value: "day", label: "일" }
+];
+
+const scheduleTypeFilters: Array<{ value: ScheduleTypeFilter; label: string }> = [
+  { value: "all", label: "전체" },
+  { value: "pt", label: "PT" },
+  { value: "morning", label: "오전반" },
+  { value: "elementary", label: "초등부" },
+  { value: "general", label: "일반부" }
+];
+
+const ptVisibleScheduleTypes: ScheduleTypeFilter[] = ["all", "pt"];
 
 const csvDatasetOptions: Array<{ key: CsvDatasetKey; label: string }> = [
   { key: "members", label: "회원" },
@@ -1142,7 +1160,7 @@ export function PtManagementApp() {
 
             <nav className="bottom-tabs admin-bottom-tabs" aria-label="관리자 메뉴">
               <TabButton active={adminTab === "home"} onClick={() => setAdminTab("home")} icon={<Home size={18} />} label="홈" />
-              <TabButton active={adminTab === "week"} onClick={() => setAdminTab("week")} icon={<CalendarDays size={18} />} label="주간" />
+              <TabButton active={adminTab === "week"} onClick={() => setAdminTab("week")} icon={<CalendarDays size={18} />} label="일정" />
               <TabButton active={adminTab === "members"} onClick={() => setAdminTab("members")} icon={<Users size={18} />} label="회원" />
               <TabButton active={adminTab === "settings"} onClick={() => setAdminTab("settings")} icon={<Settings size={18} />} label="설정" />
             </nav>
@@ -1292,24 +1310,64 @@ function ScheduleView({
   completeSession: (reservationId: string) => void;
   resolveLateCancel: (reservationId: string, deduct: boolean) => void;
 }) {
+  const [scheduleViewMode, setScheduleViewMode] = useState<ScheduleViewMode>("week");
+  const [scheduleTypeFilter, setScheduleTypeFilter] = useState<ScheduleTypeFilter>("all");
+  const showPtSchedule = ptVisibleScheduleTypes.includes(scheduleTypeFilter);
+
   return (
     <section className="week-screen">
       <div className="panel-heading">
         <div>
-          <p className="eyebrow">예약 일정</p>
-          <h2>날짜별 예약 현황</h2>
+          <p className="eyebrow">통합 일정</p>
+          <h2>날짜별 운영 현황</h2>
         </div>
         <CalendarDays size={20} />
       </div>
-      <WeekSchedule
-        weekDays={weekDays}
-        state={state}
-        memberName={memberName}
-        approveReservation={approveReservation}
-        rejectReservation={rejectReservation}
-        completeSession={completeSession}
-        resolveLateCancel={resolveLateCancel}
-      />
+      <div className="schedule-shell-controls" aria-label="일정 보기 설정">
+        <div className="schedule-control-group" role="tablist" aria-label="보기 전환">
+          {scheduleViewOptions.map((option) => (
+            <button
+              className={scheduleViewMode === option.value ? "segmented active" : "segmented"}
+              key={option.value}
+              type="button"
+              onClick={() => setScheduleViewMode(option.value)}
+              aria-pressed={scheduleViewMode === option.value}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <div className="schedule-control-group schedule-type-filter" role="tablist" aria-label="일정 타입 필터">
+          {scheduleTypeFilters.map((option) => (
+            <button
+              className={scheduleTypeFilter === option.value ? "segmented active" : "segmented"}
+              key={option.value}
+              type="button"
+              onClick={() => setScheduleTypeFilter(option.value)}
+              aria-pressed={scheduleTypeFilter === option.value}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {showPtSchedule ? (
+        <WeekSchedule
+          weekDays={weekDays}
+          state={state}
+          memberName={memberName}
+          approveReservation={approveReservation}
+          rejectReservation={rejectReservation}
+          completeSession={completeSession}
+          resolveLateCancel={resolveLateCancel}
+          scheduleViewMode={scheduleViewMode}
+        />
+      ) : (
+        <div className="empty-state schedule-class-empty">
+          <strong>아직 등록된 수업 일정이 없습니다.</strong>
+          <span>설정에서 프로그램 운영 시간을 추가하면 여기에 표시됩니다.</span>
+        </div>
+      )}
     </section>
   );
 }
@@ -1322,7 +1380,8 @@ function WeekSchedule({
   rejectReservation,
   completeSession,
   resolveLateCancel,
-  summary = false
+  summary = false,
+  scheduleViewMode = "month"
 }: {
   weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>;
   state: AppState;
@@ -1332,6 +1391,7 @@ function WeekSchedule({
   completeSession?: (reservationId: string) => void;
   resolveLateCancel?: (reservationId: string, deduct: boolean) => void;
   summary?: boolean;
+  scheduleViewMode?: ScheduleViewMode;
 }) {
   if (summary) {
     return <WeekSummary weekDays={weekDays} state={state} memberName={memberName} />;
@@ -1344,6 +1404,7 @@ function WeekSchedule({
       variant="admin"
       ariaLabel="예약 일정 달력"
       emptyLabel="해당 날짜에 등록된 시간이 없습니다."
+      displayMode={scheduleViewMode}
       renderSlot={(slot, reservation) => {
         const status = reservation?.status ?? slot.status;
         const label = reservation ? memberName(reservation.memberId) : slot.status === "blocked" ? "운영 차단" : "예약 가능";
@@ -1390,6 +1451,7 @@ function MonthlySchedulePicker({
   variant,
   ariaLabel,
   emptyLabel,
+  displayMode = "month",
   renderSlot
 }: {
   slots: AvailabilitySlot[];
@@ -1397,6 +1459,7 @@ function MonthlySchedulePicker({
   variant: "admin" | "member";
   ariaLabel: string;
   emptyLabel: string;
+  displayMode?: ScheduleViewMode;
   renderSlot: (slot: AvailabilitySlot, reservation?: Reservation) => ReactNode;
 }) {
   const sortedSlots = useMemo(() => [...slots].sort((a, b) => a.startAt.localeCompare(b.startAt)), [slots]);
@@ -1445,7 +1508,7 @@ function MonthlySchedulePicker({
   }
 
   return (
-    <div className="schedule-picker">
+    <div className={`schedule-picker schedule-view-${displayMode}`}>
       <section className="schedule-calendar" aria-label={ariaLabel}>
         <div className="schedule-calendar-header">
           <button className="icon-button" type="button" onClick={() => moveMonth(-1)} aria-label="이전 달">
