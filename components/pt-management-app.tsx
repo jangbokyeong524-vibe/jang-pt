@@ -35,6 +35,7 @@ import {
   resolveLateCancelAction
 } from "@/lib/reservation-actions";
 import { initialState } from "@/lib/seed-data";
+import { fetchOperationalDataAction } from "@/lib/supabase-data";
 import { createBrowserSupabaseClient, getGoogleClientId, signInWithGoogle } from "@/lib/supabase";
 import type {
   AppState,
@@ -214,6 +215,43 @@ export function PtManagementApp() {
     }));
   }
 
+  async function refreshOperationalData({ preferredMemberId }: { preferredMemberId?: string } = {}) {
+    if (!supabase) {
+      return;
+    }
+
+    const operationalData = await fetchOperationalDataAction({
+      supabase,
+      fallback: () => ({
+        members: state.members,
+        passes: state.passes,
+        passEvents: state.passEvents,
+        slots: state.slots,
+        reservations: state.reservations,
+        payments: state.payments,
+        paymentEvents: state.paymentEvents,
+        extensionRequests: state.extensionRequests,
+        policies: state.policies
+      })
+    });
+
+    setState((current) => ({
+      ...current,
+      ...operationalData
+    }));
+
+    setSelectedMemberId((currentId) =>
+      operationalData.members.some((member) => member.id === currentId) ? currentId : operationalData.members[0]?.id ?? currentId
+    );
+    setMemberSessionId((currentId) => {
+      if (preferredMemberId && operationalData.members.some((member) => member.id === preferredMemberId)) {
+        return preferredMemberId;
+      }
+
+      return operationalData.members.some((member) => member.id === currentId) ? currentId : operationalData.members[0]?.id ?? currentId;
+    });
+  }
+
   useEffect(() => {
     if (!supabase) {
       setAuthStatus("demo");
@@ -260,6 +298,7 @@ export function PtManagementApp() {
         }
 
         if (isAdmin) {
+          await refreshOperationalData();
           await refreshMemberLinkReviewData();
           setAuthStatus("admin");
           setMode("admin");
@@ -274,6 +313,7 @@ export function PtManagementApp() {
         }
 
         if (approvedMemberId) {
+          await refreshOperationalData({ preferredMemberId: String(approvedMemberId) });
           setAuthStatus("member");
           setMode("member");
           setMemberSessionId(String(approvedMemberId));
@@ -543,6 +583,7 @@ export function PtManagementApp() {
           }));
         }
       });
+      await refreshOperationalData();
       setMessage("예약을 확정했습니다.");
     } catch {
       setMessage("예약 확정 처리에 실패했습니다.");
@@ -572,6 +613,7 @@ export function PtManagementApp() {
           });
         }
       });
+      await refreshOperationalData();
       setMessage("예약 요청을 거절하고 슬롯을 다시 열었습니다.");
     } catch {
       setMessage("예약 거절 처리에 실패했습니다.");
@@ -623,6 +665,7 @@ export function PtManagementApp() {
           });
         }
       });
+      await refreshOperationalData();
       setMessage("수업완료 처리와 1회 차감을 기록했습니다.");
     } catch {
       setMessage("수업완료 처리에 실패했습니다.");
@@ -691,6 +734,7 @@ export function PtManagementApp() {
           return reservationId;
         }
       });
+      await refreshOperationalData();
       setMessage("예약 요청을 보냈습니다. 관장 승인 전까지 슬롯이 잠깁니다.");
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "";
@@ -763,6 +807,7 @@ export function PtManagementApp() {
           return result;
         }
       });
+      await refreshOperationalData();
       setMessage("취소 요청을 처리했습니다.");
     } catch {
       setMessage("취소 요청 처리에 실패했습니다.");
@@ -828,6 +873,7 @@ export function PtManagementApp() {
           });
         }
       });
+      await refreshOperationalData();
       setMessage(deduct ? "취소 차감을 기록했습니다." : "미차감 예외로 처리했습니다.");
     } catch {
       setMessage("취소 차감 처리에 실패했습니다.");

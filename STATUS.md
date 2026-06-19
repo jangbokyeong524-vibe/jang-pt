@@ -2,7 +2,7 @@
 
 updated: 2026-06-19
 mode: codex-resume-index
-phase: schedule-month-week-mode-simplified
+phase: db-refetch-after-reservation-rpc
 
 ## Rules
 
@@ -32,12 +32,15 @@ phase: schedule-month-week-mode-simplified
 - Admin and member selected-day schedule rows now emphasize `time range / status / action` and remove duplicate availability copy.
 - Member `예약` keeps the current PT reservation action flow. Docs note a later `PT / 수업` direction for member scheduling.
 - Static layout contracts cover the two-select compact toolbar, compressed time/status/action rows, `월 / 주` mode boundary, merged schedule type select, 7-day week strip, agenda-first ordering, month-only equal desktop split, and PT-only data boundary.
+- Supabase live mode now reads operational tables through `lib/supabase-data.ts` and refetches them after reservation request/approve/reject/cancel/late-cancel/session-complete RPC success.
+- The refetch maps DB `availability_slots` plus active `reservations` back into the app slot model because the DB slot table does not store `reservation_id`.
+- Supabase policy JSON is mapped field-by-field with typed fallbacks, and approved member login preserves the approved member id during the initial operational refetch.
 
 ## Next Actions
 
 1. Manually verify the live Supabase member-link flow with a non-admin Google account and an admin account.
-2. Wire DB reads/refetch after reservation/payment/extension RPC calls.
-3. Design and wire MVP-required payment status and extension approval RPCs, including payment/extension/pass event history.
+2. Design and wire MVP-required payment status RPC, including `pt_passes`, `payments`, and `payment_events` history.
+3. Design and wire MVP-required extension approval/rejection RPC, including `extension_requests`, PT권 만료일, and `pass_events.extension_request_id` history.
 4. Connect Kakao login UI if Kakao member login remains required for MVP.
 5. Design the real class-program data model before adding 오전반/초등부/일반부 capacity, attendance, or member reservation actions.
 
@@ -47,4 +50,5 @@ phase: schedule-month-week-mode-simplified
 
 ## Last Verified
 
+- 2026-06-19: DB refetch slice and hardening verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-19: Schedule row compression verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 const css = readFileSync("app/globals.css", "utf8");
 const component = readFileSync("components/pt-management-app.tsx", "utf8");
+const supabaseData = readFileSync("lib/supabase-data.ts", "utf8");
 
 const failures = [];
 const scheduleToolbarStart = component.indexOf('className="schedule-compact-toolbar"');
@@ -111,6 +112,45 @@ assert(
 assert(
   component.includes("visibleMemberSlots") && component.includes("memberReservationForSlot"),
   "member booking should hide unavailable slots and only render member-owned reservations"
+);
+
+for (const actionName of [
+  "approveReservation",
+  "rejectReservation",
+  "completeSession",
+  "requestBooking",
+  "requestCancel",
+  "resolveLateCancel"
+]) {
+  const actionStart = component.indexOf(`async function ${actionName}`);
+  const nextActionStart = component.indexOf("\n  async function", actionStart + 1);
+  const nextPlainFunctionStart = component.indexOf("\n  function", actionStart + 1);
+  const actionEndCandidates = [nextActionStart, nextPlainFunctionStart].filter((index) => index > actionStart);
+  const actionEnd = actionEndCandidates.length > 0 ? Math.min(...actionEndCandidates) : component.length;
+  const actionBody = actionStart >= 0 ? component.slice(actionStart, actionEnd) : "";
+
+  assert(
+    actionBody.includes("await refreshOperationalData();"),
+    `${actionName} should refresh Supabase operational data after RPC success`
+  );
+}
+
+assert(
+  !supabaseData.includes("} as PolicySettings"),
+  "Supabase policy settings should be validated field-by-field instead of cast from raw JSON"
+);
+
+assert(
+  supabaseData.includes("function bookingLimitFromRecord") &&
+    supabaseData.includes("function stringArrayFromRecord") &&
+    supabaseData.includes("function booleanFromRecord"),
+  "Supabase policy settings should use typed fallback helpers for enum, array, and boolean fields"
+);
+
+assert(
+  component.includes("preferredMemberId") &&
+    component.includes("await refreshOperationalData({ preferredMemberId: String(approvedMemberId) });"),
+  "approved member login should preserve the approved member id during operational refetch"
 );
 
 assert(
