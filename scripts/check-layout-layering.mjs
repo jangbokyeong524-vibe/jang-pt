@@ -84,6 +84,12 @@ assert(
 );
 
 assert(
+  /\.member-compact-header\s*\{[^}]*min-height:\s*4[4-9]px/s.test(css) &&
+    /\.member-header-menu-trigger\s*\{[^}]*width:\s*3[2-6]px[^}]*height:\s*3[2-6]px/s.test(css),
+  "single-line member compact header should reduce height and control size after removing tab title"
+);
+
+assert(
   !memberView.includes('className="toolbar"'),
   "member view should remove the old full-width toolbar member selector row"
 );

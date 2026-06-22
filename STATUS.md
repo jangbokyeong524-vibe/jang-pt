@@ -31,6 +31,7 @@ phase: member-compact-header
 - Member mode owns its own compact header: member name, visible approval state, and a member menu.
 - Member mode no longer renders the root admin topbar/status-line or the old full-width member selector toolbar.
 - Approved member mode does not show the login email or global login/status message inside the member surface.
+- Member compact header is tuned for a single-line name, with reduced height and smaller menu control.
 - Member `예약` keeps the PT reservation action flow, starts with the calendar section, and keeps the booking summary as a compact three-column row.
 - Static layout contracts cover the member compact header, admin-only root header, two-select admin schedule toolbar, compact schedule rows, month/week boundary, and PT-only data boundary.
 
@@ -48,6 +49,7 @@ phase: member-compact-header
 
 ## Last Verified
 
+- 2026-06-22: Single-line member header height verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-22: Approved member email/message cleanup verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-22: Member header name-only cleanup verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-22: Member compact header slice verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
