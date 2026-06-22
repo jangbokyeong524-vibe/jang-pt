@@ -98,14 +98,25 @@ textarea:focus-visible {
   top: 0;
   z-index: 20;
   justify-content: space-between;
-  align-items: stretch;
+  align-items: flex-start;
   flex-direction: column;
-  gap: 12px;
-  margin: -12px -12px 12px;
-  padding: calc(12px + env(safe-area-inset-top)) 12px 12px;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 8px 0;
   border-bottom: 1px solid rgba(224, 224, 224, 0.72);
   background: rgba(245, 245, 247, 0.86);
   backdrop-filter: blur(18px);
+}
+
+.topbar h1 {
+  font-size: 22px;
+  line-height: 1.12;
+}
+
+.topbar .eyebrow {
+  margin-bottom: 3px;
+  font-size: 11px;
+  line-height: 1.2;
 }
 
 h1,
@@ -147,12 +158,19 @@ h3 {
 .topbar-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-  padding: 4px;
+  gap: 3px;
+  width: 100%;
+  padding: 3px;
   border: 1px solid rgba(224, 224, 224, 0.86);
   border-radius: var(--control-radius);
   background: rgba(255, 255, 255, 0.74);
-  box-shadow: var(--shadow);
+}
+
+.topbar .segmented {
+  min-height: 34px;
+  gap: 6px;
+  padding: 0 10px;
+  font-size: 13px;
 }
 
 .segmented,
@@ -197,16 +215,22 @@ h3 {
 }
 
 .status-line {
-  min-height: 44px;
-  gap: 9px;
-  padding: 10px 14px;
-  margin-bottom: 12px;
-  border: 1px solid rgba(224, 224, 224, 0.86);
-  border-radius: var(--row-radius);
-  background: rgba(255, 255, 255, 0.8);
+  min-height: 34px;
+  gap: 8px;
+  padding: 6px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(224, 224, 224, 0.72);
   color: var(--muted);
-  box-shadow: var(--shadow);
   font-size: 14px;
+  line-height: 1.35;
+}
+
+.status-line svg {
+  flex: 0 0 auto;
+}
+
+.status-line span {
+  min-width: 0;
 }
 
 .admin-layout {
@@ -2104,11 +2128,9 @@ textarea {
     z-index: auto;
     align-items: center;
     flex-direction: row;
-    margin: 0 0 16px;
-    padding: 0;
-    border-bottom: 0;
-    background: transparent;
-    backdrop-filter: none;
+    gap: 12px;
+    margin: 0 0 10px;
+    padding: 8px 0 10px;
   }
 
   h1 {
@@ -2117,7 +2139,7 @@ textarea {
 
   .topbar-actions {
     width: auto;
-    grid-template-columns: repeat(2, minmax(108px, 1fr));
+    grid-template-columns: repeat(2, minmax(92px, 1fr));
   }
 
   .schedule-type-filter {

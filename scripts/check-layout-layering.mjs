@@ -70,6 +70,27 @@ assert(
 );
 
 assert(
+  /\.topbar\s*\{(?![^}]*env\(safe-area-inset-top\))(?![^}]*margin:\s*-[^;}]*-[^;}]*;)[^}]*margin:\s*0\s+0\s+[0-9]+px[^}]*padding:\s*[0-9]+px\s+0/s.test(css),
+  "admin topbar should stay inside the app shell with no negative bleed or safe-area top padding"
+);
+
+assert(
+  /\.topbar\s*\{[^}]*gap:\s*[0-8]px[^}]*padding:\s*[0-8]px\s+0/s.test(css) &&
+    /\.topbar\s+h1\s*\{[^}]*font-size:\s*2[0-3]px[^}]*line-height:\s*1\.1[0-9]/s.test(css),
+  "admin topbar should use compact vertical spacing and lower title type"
+);
+
+assert(
+  /\.topbar\s+\.segmented\s*\{[^}]*min-height:\s*3[2-8]px[^}]*padding:\s*0\s+1[0-2]px[^}]*font-size:\s*13px/s.test(css),
+  "admin/member mode switch in the admin topbar should be a compact control"
+);
+
+assert(
+  /\.status-line\s*\{[^}]*min-height:\s*3[0-8]px[^}]*padding:\s*[5-8]px\s+0[^}]*margin-bottom:\s*[0-8]px(?![^}]*box-shadow)/s.test(css),
+  "admin status-line should be a low inline notice, not a large card"
+);
+
+assert(
   memberView.includes('className="member-compact-header"') &&
     memberView.includes('className="member-header-menu"') &&
     memberView.includes('aria-label="회원 메뉴"'),
