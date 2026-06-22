@@ -91,14 +91,20 @@ assert(
 );
 
 assert(
-  /\.member-compact-header\s*\{(?![^}]*env\(safe-area-inset-top\))[^}]*min-height:\s*3[4-6]px/s.test(css) &&
+  /\.member-compact-header\s*\{(?![^}]*env\(safe-area-inset-top\))[^}]*min-height:\s*4[0-2]px/s.test(css) &&
     /\.member-header-menu-trigger\s*\{[^}]*width:\s*3[0-2]px[^}]*height:\s*3[0-2]px/s.test(css),
-  "single-line member compact header should be a low text-like utility row without safe-area top padding"
+  "single-line member compact header should keep a little vertical breathing room without safe-area top padding"
 );
 
 assert(
   /\.member-compact-header\s*\{(?![^}]*margin:\s*-[^;}]*-[^;}]*;)[^}]*margin:\s*0/s.test(css),
   "member compact header should stay inside the app shell without negative horizontal bleed"
+);
+
+assert(
+  /\.member-header-title strong\s*\{[^}]*line-height:\s*1\.2[4-9]/s.test(css) &&
+    /\.auth-identity span\s*\{[^}]*line-height:\s*1\.3[0-9]/s.test(css),
+  "member header name and auth email should have enough line height to avoid clipped descenders"
 );
 
 assert(
