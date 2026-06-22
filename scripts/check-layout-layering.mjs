@@ -76,6 +76,14 @@ assert(
 );
 
 assert(
+  !memberView.includes("memberTabTitle") &&
+    memberView.includes("memberDisplayName") &&
+    memberView.includes("linkRequest?.displayName") &&
+    component.includes("await refreshOwnMemberLinkRequests(session.user.id);"),
+  "member compact header should show the member name, not a changing tab title or email-like fallback"
+);
+
+assert(
   !memberView.includes('className="toolbar"'),
   "member view should remove the old full-width toolbar member selector row"
 );

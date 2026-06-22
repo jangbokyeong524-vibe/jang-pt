@@ -28,7 +28,7 @@ phase: member-compact-header
 - `전체` and `PT` currently show the existing PT slot/reservation flow. `오전반`, `초등부`, and `일반부` currently show only the empty class-schedule state.
 - Admin schedule rows emphasize `time range / status / action`, with the week strip directly above the selected-day time list in week mode.
 - Member tabs are `홈 / 예약 / 내역`.
-- Member mode owns its own compact header: current tab title, member identity, visible approval state, and a member menu.
+- Member mode owns its own compact header: member name, visible approval state, and a member menu.
 - Member mode no longer renders the root admin topbar/status-line or the old full-width member selector toolbar.
 - Approved member mode does not show the login email or global login/status message inside the member surface.
 - Member `예약` keeps the PT reservation action flow, starts with the calendar section, and keeps the booking summary as a compact three-column row.
@@ -49,4 +49,5 @@ phase: member-compact-header
 ## Last Verified
 
 - 2026-06-22: Approved member email/message cleanup verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
+- 2026-06-22: Member header name-only cleanup verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-22: Member compact header slice verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.

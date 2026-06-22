@@ -315,6 +315,7 @@ export function PtManagementApp() {
 
         if (approvedMemberId) {
           await refreshOperationalData({ preferredMemberId: String(approvedMemberId) });
+          await refreshOwnMemberLinkRequests(session.user.id);
           setAuthStatus("member");
           setMode("member");
           setMemberSessionId(String(approvedMemberId));
@@ -2370,12 +2371,8 @@ function MemberView({
   const approvedLink = !linkRequest || linkRequest.status === "approved";
   const [memberMenuOpen, setMemberMenuOpen] = useState(false);
   const memberMenuRef = useRef<HTMLDivElement>(null);
-  const memberTabTitle: Record<MemberTab, string> = {
-    home: "홈",
-    booking: "PT 예약",
-    history: "내역"
-  };
-  const memberIdentity = member.name || "회원";
+  const memberDisplayName =
+    linkRequest?.displayName || (member.name.includes("@") ? "" : member.name) || "회원";
 
   useEffect(() => {
     if (!memberMenuOpen) {
@@ -2422,8 +2419,7 @@ function MemberView({
     <section className="member-app app-surface-flat with-bottom-nav">
       <header className="member-compact-header">
         <div className="member-header-title">
-          <strong>{memberTabTitle[memberTab]}</strong>
-          <span>{memberIdentity}</span>
+          <strong>{memberDisplayName}</strong>
         </div>
         <StatusPill
           value={approvedLink ? "approved" : linkRequest?.status ?? "pending"}

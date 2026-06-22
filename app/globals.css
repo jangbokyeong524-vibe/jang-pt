@@ -396,17 +396,6 @@ h3 {
   white-space: nowrap;
 }
 
-.member-header-title span {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .member-header-menu-wrap {
   position: relative;
   display: grid;
