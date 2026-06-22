@@ -11,7 +11,7 @@ const scheduleToolbar =
   scheduleToolbarStart >= 0 && scheduleToolbarEnd > scheduleToolbarStart
     ? component.slice(scheduleToolbarStart, scheduleToolbarEnd)
     : "";
-const rootReturnStart = component.indexOf('return (\n    <main className="app-shell">');
+const rootReturnStart = component.indexOf("return (");
 const rootMemberBranchStart = component.indexOf('{mode === "admin" ? (', rootReturnStart);
 const rootMemberBranch =
   rootMemberBranchStart >= 0 ? component.slice(rootMemberBranchStart, component.indexOf("</main>", rootMemberBranchStart)) : "";
@@ -59,6 +59,12 @@ assert(
 );
 
 assert(
+  component.includes('className={`app-shell ${mode === "member" ? "member-shell" : ""}`.trim()}') &&
+    /\.member-shell\s*\{[^}]*padding-top:\s*0/s.test(css),
+  "member mode should remove the shared app-shell top padding so the compact header starts near the viewport top"
+);
+
+assert(
   /mode === "admin" \?[\s\S]*className="topbar"[\s\S]*className="status-line"[\s\S]*<MemberView/.test(rootMemberBranch),
   "member mode should not render the root topbar/status-line; admin mode should own the shared header"
 );
@@ -85,14 +91,20 @@ assert(
 );
 
 assert(
-  /\.member-compact-header\s*\{[^}]*min-height:\s*4[0-4]px/s.test(css) &&
-    /\.member-header-menu-trigger\s*\{[^}]*width:\s*3[2-6]px[^}]*height:\s*3[2-6]px/s.test(css),
-  "single-line member compact header should reduce height and control size after removing tab title"
+  /\.member-compact-header\s*\{(?![^}]*env\(safe-area-inset-top\))[^}]*min-height:\s*3[4-6]px/s.test(css) &&
+    /\.member-header-menu-trigger\s*\{[^}]*width:\s*3[0-2]px[^}]*height:\s*3[0-2]px/s.test(css),
+  "single-line member compact header should be a low text-like utility row without safe-area top padding"
 );
 
 assert(
   /\.member-compact-header\s*\{(?![^}]*margin:\s*-[^;}]*-[^;}]*;)[^}]*margin:\s*0/s.test(css),
   "member compact header should stay inside the app shell without negative horizontal bleed"
+);
+
+assert(
+  /\.member-dashboard\s*>\s*\.section-band:first-child\s*\{[^}]*margin-top:\s*[0-8]px/s.test(css) &&
+    /\.member-app\s*\{[^}]*gap:\s*[0-8]px/s.test(css),
+  "member content should sit close to the low utility header instead of preserving the old large top spacing"
 );
 
 assert(

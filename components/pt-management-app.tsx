@@ -1121,7 +1121,7 @@ export function PtManagementApp() {
   }
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${mode === "member" ? "member-shell" : ""}`.trim()}>
       {mode === "admin" ? (
         <>
           <header className="topbar">
