@@ -78,15 +78,28 @@ assert(
 assert(
   !memberView.includes("memberTabTitle") &&
     memberView.includes("memberDisplayName") &&
-    memberView.includes("linkRequest?.displayName") &&
+    memberView.includes('linkRequest?.status === "approved"') &&
+    memberView.includes("linkRequest.displayName") &&
     component.includes("await refreshOwnMemberLinkRequests(session.user.id);"),
   "member compact header should show the member name, not a changing tab title or email-like fallback"
 );
 
 assert(
-  /\.member-compact-header\s*\{[^}]*min-height:\s*4[4-9]px/s.test(css) &&
+  /\.member-compact-header\s*\{[^}]*min-height:\s*4[0-4]px/s.test(css) &&
     /\.member-header-menu-trigger\s*\{[^}]*width:\s*3[2-6]px[^}]*height:\s*3[2-6]px/s.test(css),
   "single-line member compact header should reduce height and control size after removing tab title"
+);
+
+assert(
+  /\.member-compact-header\s*\{(?![^}]*margin:\s*-[^;}]*-[^;}]*;)[^}]*margin:\s*0/s.test(css),
+  "member compact header should stay inside the app shell without negative horizontal bleed"
+);
+
+assert(
+  memberView.includes("memberDisplayName={memberDisplayName}") &&
+    !memberView.includes("<MemberHomeView\n          state={state}\n          member={member}\n          activePass") &&
+    !memberView.includes("<h2>{member.name}</h2>"),
+  "member home title should receive the sanitized member display name instead of raw member.name"
 );
 
 assert(

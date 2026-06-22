@@ -2371,8 +2371,13 @@ function MemberView({
   const approvedLink = !linkRequest || linkRequest.status === "approved";
   const [memberMenuOpen, setMemberMenuOpen] = useState(false);
   const memberMenuRef = useRef<HTMLDivElement>(null);
+  const memberName = member.name.trim();
   const memberDisplayName =
-    linkRequest?.displayName || (member.name.includes("@") ? "" : member.name) || "회원";
+    linkRequest?.status === "approved" && linkRequest.displayName.trim()
+      ? linkRequest.displayName.trim()
+      : memberName && !memberName.includes("@")
+        ? memberName
+        : "회원";
 
   useEffect(() => {
     if (!memberMenuOpen) {
@@ -2472,6 +2477,7 @@ function MemberView({
         <MemberHomeView
           state={state}
           member={member}
+          memberDisplayName={memberDisplayName}
           activePass={activePass}
           reservations={reservations}
           payments={payments}
@@ -2518,6 +2524,7 @@ function MemberView({
 function MemberHomeView({
   state,
   member,
+  memberDisplayName,
   activePass,
   reservations,
   payments,
@@ -2527,6 +2534,7 @@ function MemberHomeView({
 }: {
   state: AppState;
   member: Member;
+  memberDisplayName: string;
   activePass?: PtPass;
   reservations: Reservation[];
   payments: Payment[];
@@ -2570,7 +2578,7 @@ function MemberHomeView({
         <div className="panel-heading">
           <div>
             <p className="eyebrow">내 PT</p>
-            <h2>{member.name}</h2>
+            <h2>{memberDisplayName}</h2>
           </div>
           <UserCheck size={20} />
         </div>
