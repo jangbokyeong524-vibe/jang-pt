@@ -11,6 +11,21 @@ const scheduleToolbar =
   scheduleToolbarStart >= 0 && scheduleToolbarEnd > scheduleToolbarStart
     ? component.slice(scheduleToolbarStart, scheduleToolbarEnd)
     : "";
+const rootReturnStart = component.indexOf('return (\n    <main className="app-shell">');
+const rootMemberBranchStart = component.indexOf('{mode === "admin" ? (', rootReturnStart);
+const rootMemberBranch =
+  rootMemberBranchStart >= 0 ? component.slice(rootMemberBranchStart, component.indexOf("</main>", rootMemberBranchStart)) : "";
+const memberViewStart = component.indexOf("function MemberView");
+const memberBookingViewStart = component.indexOf("function MemberBookingView");
+const memberHistoryViewStart = component.indexOf("function MemberHistoryView");
+const memberView =
+  memberViewStart >= 0 && memberBookingViewStart > memberViewStart
+    ? component.slice(memberViewStart, memberBookingViewStart)
+    : "";
+const memberBookingView =
+  memberBookingViewStart >= 0 && memberHistoryViewStart > memberBookingViewStart
+    ? component.slice(memberBookingViewStart, memberHistoryViewStart)
+    : "";
 
 function assert(condition, message) {
   if (!condition) {
@@ -41,6 +56,28 @@ assert(
 assert(
   /className="member-app app-surface-flat with-bottom-nav"/.test(component),
   "member shell should use the common flat app surface class"
+);
+
+assert(
+  /mode === "admin" \?[\s\S]*className="topbar"[\s\S]*className="status-line"[\s\S]*<MemberView/.test(rootMemberBranch),
+  "member mode should not render the root topbar/status-line; admin mode should own the shared header"
+);
+
+assert(
+  memberView.includes('className="member-compact-header"') &&
+    memberView.includes('className="member-header-menu"') &&
+    memberView.includes('aria-label="회원 메뉴"'),
+  "member view should own a compact header with visible identity, approval state, and menu"
+);
+
+assert(
+  !memberView.includes('className="toolbar"'),
+  "member view should remove the old full-width toolbar member selector row"
+);
+
+assert(
+  /\.member-booking-summary\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s.test(css),
+  "member booking summary should be a compact three-column row from mobile"
 );
 
 assert(
@@ -158,7 +195,6 @@ assert(
   "member booking rows should expose cancel action for own confirmed reservations"
 );
 
-const memberBookingView = component.slice(component.indexOf("function MemberBookingView"), component.indexOf("function MemberHistoryView"));
 assert(
   !memberBookingView.includes("memberName("),
   "member booking screen must not render other member names"

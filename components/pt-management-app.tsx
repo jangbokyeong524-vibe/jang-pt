@@ -9,6 +9,7 @@ import {
   History,
   Home,
   LogIn,
+  MoreVertical,
   Settings,
   UserCheck,
   Users,
@@ -1120,39 +1121,40 @@ export function PtManagementApp() {
 
   return (
     <main className="app-shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">강동무에타이장</p>
-          <h1>PT 운영 관리</h1>
-        </div>
-        {authStatus === "demo" ? (
-          <div className="topbar-actions" role="tablist" aria-label="화면 전환">
-            <button className={mode === "admin" ? "segmented active" : "segmented"} onClick={() => setMode("admin")}>
-              <ClipboardList size={16} />
-              관리자
-            </button>
-            <button className={mode === "member" ? "segmented active" : "segmented"} onClick={() => setMode("member")}>
-              <LogIn size={16} />
-              회원
-            </button>
-          </div>
-        ) : (
-          <div className="auth-identity">
-            <span>{authEmail}</span>
-            <button className="ghost-button" onClick={handleSignOut} type="button">
-              로그아웃
-            </button>
-          </div>
-        )}
-      </header>
-
-      <section className="status-line" aria-live="polite">
-        <Bell size={16} />
-        <span>{message}</span>
-      </section>
-
       {mode === "admin" ? (
-        <section className="app-surface-flat with-bottom-nav">
+        <>
+          <header className="topbar">
+            <div>
+              <p className="eyebrow">강동무에타이장</p>
+              <h1>PT 운영 관리</h1>
+            </div>
+            {authStatus === "demo" ? (
+              <div className="topbar-actions" role="tablist" aria-label="화면 전환">
+                <button className="segmented active" onClick={() => setMode("admin")}>
+                  <ClipboardList size={16} />
+                  관리자
+                </button>
+                <button className="segmented" onClick={() => setMode("member")}>
+                  <LogIn size={16} />
+                  회원
+                </button>
+              </div>
+            ) : (
+              <div className="auth-identity">
+                <span>{authEmail}</span>
+                <button className="ghost-button" onClick={handleSignOut} type="button">
+                  로그아웃
+                </button>
+              </div>
+            )}
+          </header>
+
+          <section className="status-line" aria-live="polite">
+            <Bell size={16} />
+            <span>{message}</span>
+          </section>
+
+          <section className="app-surface-flat with-bottom-nav">
             {adminTab === "home" && (
               <AdminHomeView
                 tasks={tasks}
@@ -1209,13 +1211,19 @@ export function PtManagementApp() {
               <TabButton active={adminTab === "members"} onClick={() => setAdminTab("members")} icon={<Users size={18} />} label="회원" />
               <TabButton active={adminTab === "settings"} onClick={() => setAdminTab("settings")} icon={<Settings size={18} />} label="설정" />
             </nav>
-        </section>
+          </section>
+        </>
       ) : (
         <MemberView
+          authStatus={authStatus}
+          authEmail={authEmail}
+          message={message}
+          handleSignOut={handleSignOut}
           state={state}
           member={loggedInMember}
           memberTab={memberTab}
           setMemberTab={setMemberTab}
+          setMode={setMode}
           memberSessionId={memberSessionId}
           setMemberSessionId={setMemberSessionId}
           activePass={activePassFor(loggedInMember.id)}
@@ -2322,10 +2330,15 @@ function SettingsMenuButton({
 }
 
 function MemberView({
+  authStatus,
+  authEmail,
+  message,
+  handleSignOut,
   state,
   member,
   memberTab,
   setMemberTab,
+  setMode,
   memberSessionId,
   setMemberSessionId,
   activePass,
@@ -2338,10 +2351,15 @@ function MemberView({
   requestCancel,
   slotFor
 }: {
+  authStatus: AuthStatus;
+  authEmail: string;
+  message: string;
+  handleSignOut: () => void | Promise<void>;
   state: AppState;
   member: Member;
   memberTab: MemberTab;
   setMemberTab: (tab: MemberTab) => void;
+  setMode: (mode: "admin" | "member") => void;
   memberSessionId: string;
   setMemberSessionId: (id: string) => void;
   activePass?: PtPass;
@@ -2356,22 +2374,115 @@ function MemberView({
 }) {
   const linkRequest = state.memberLinkRequests.find((request) => request.memberId === memberSessionId);
   const approvedLink = !linkRequest || linkRequest.status === "approved";
+  const [memberMenuOpen, setMemberMenuOpen] = useState(false);
+  const memberMenuRef = useRef<HTMLDivElement>(null);
+  const memberTabTitle: Record<MemberTab, string> = {
+    home: "홈",
+    booking: "PT 예약",
+    history: "내역"
+  };
+  const memberIdentity = member.name || authEmail || "회원";
+
+  useEffect(() => {
+    if (!memberMenuOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (memberMenuRef.current && !memberMenuRef.current.contains(event.target as Node)) {
+        setMemberMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMemberMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [memberMenuOpen]);
+
+  function handleMemberSessionChange(nextMemberId: string) {
+    setMemberSessionId(nextMemberId);
+    setMemberMenuOpen(false);
+  }
+
+  function handleAdminModeSelect() {
+    setMode("admin");
+    setMemberMenuOpen(false);
+  }
+
+  async function handleMemberSignOut() {
+    setMemberMenuOpen(false);
+    await handleSignOut();
+  }
 
   return (
     <section className="member-app app-surface-flat with-bottom-nav">
-      <div className="toolbar">
-        <select value={memberSessionId} onChange={(event) => setMemberSessionId(event.target.value)} aria-label="회원 데모 계정">
-          {state.members.map((item) => (
-            <option value={item.id} key={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </select>
+      <header className="member-compact-header">
+        <div className="member-header-title">
+          <strong>{memberTabTitle[memberTab]}</strong>
+          <span>{memberIdentity}</span>
+        </div>
         <StatusPill
           value={approvedLink ? "approved" : linkRequest?.status ?? "pending"}
           label={approvedLink ? "승인됨" : "승인대기"}
         />
-      </div>
+        <div className="member-header-menu-wrap" ref={memberMenuRef}>
+          <button
+            className="icon-button member-header-menu-trigger"
+            type="button"
+            aria-label={memberMenuOpen ? "회원 메뉴 닫기" : "회원 메뉴 열기"}
+            aria-expanded={memberMenuOpen}
+            aria-haspopup="menu"
+            onClick={() => setMemberMenuOpen((open) => !open)}
+          >
+            <MoreVertical size={18} />
+          </button>
+          {memberMenuOpen && (
+            <div className="member-header-menu" role="menu" aria-label="회원 메뉴">
+              {authStatus === "demo" ? (
+                <>
+                  <label>
+                    <span>회원 선택</span>
+                    <select
+                      value={memberSessionId}
+                      onChange={(event) => handleMemberSessionChange(event.target.value)}
+                      aria-label="회원 데모 계정"
+                    >
+                      {state.members.map((item) => (
+                        <option value={item.id} key={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button className="ghost-button" onClick={handleAdminModeSelect} type="button" role="menuitem">
+                    관리자 화면
+                  </button>
+                </>
+              ) : (
+                <button className="ghost-button" onClick={handleMemberSignOut} type="button" role="menuitem">
+                  로그아웃
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </header>
+
+      {message && authStatus !== "demo" && (
+        <section className="member-inline-feedback" aria-live="polite">
+          {message}
+        </section>
+      )}
 
       {memberTab === "home" && (
         <MemberHomeView
@@ -2600,7 +2711,6 @@ function MemberBookingView({
     <section className="week-screen">
       <div className="panel-heading">
         <div>
-          <p className="eyebrow">예약</p>
           <h2>날짜별 가능 시간</h2>
         </div>
         <CalendarDays size={20} />

@@ -1,8 +1,8 @@
 # STATUS
 
-updated: 2026-06-19
+updated: 2026-06-22
 mode: codex-resume-index
-phase: db-refetch-after-reservation-rpc
+phase: member-compact-header
 
 ## Rules
 
@@ -23,32 +23,28 @@ phase: db-refetch-after-reservation-rpc
 - Local demo UI still uses `lib/seed-data.ts` for most operational data.
 - Supabase Auth/RLS and reservation/member-link RPC boundaries are partially wired, with local fallback behavior when Supabase env is missing.
 - Admin/member screens use bottom tabs.
-- Admin tabs are now `홈 / 일정 / 회원 / 설정`.
-- Admin `일정` is a unified compact schedule screen with `월 / 주` view selection and agenda-first PT handling.
-- Admin `일정` now uses a compact agenda-first layout: the week strip stays directly under the toolbar, selected-day time slots are the main body, and the month calendar appears as the explicit month view.
-- Admin `일정` top toolbar is intentionally limited to two selects: `월 / 주` view and `전체 / PT / 오전반 / 초등부 / 일반부` schedule type.
-- `전체` and `PT` currently show the existing PT slot/reservation flow and keep approval/rejection/completion/late-cancel actions.
-- `오전반`, `초등부`, and `일반부` currently show only the empty class-schedule state. Group-class reservation, capacity, attendance, waitlist, and recurring timetable generation remain out of scope.
-- Admin and member selected-day schedule rows now emphasize `time range / status / action` and remove duplicate availability copy.
-- Member `예약` keeps the current PT reservation action flow. Docs note a later `PT / 수업` direction for member scheduling.
-- Static layout contracts cover the two-select compact toolbar, compressed time/status/action rows, `월 / 주` mode boundary, merged schedule type select, 7-day week strip, agenda-first ordering, month-only equal desktop split, and PT-only data boundary.
-- Supabase live mode now reads operational tables through `lib/supabase-data.ts` and refetches them after reservation request/approve/reject/cancel/late-cancel/session-complete RPC success.
-- The refetch maps DB `availability_slots` plus active `reservations` back into the app slot model because the DB slot table does not store `reservation_id`.
-- Supabase policy JSON is mapped field-by-field with typed fallbacks, and approved member login preserves the approved member id during the initial operational refetch.
+- Admin tabs are `홈 / 일정 / 회원 / 설정`.
+- Admin `일정` is a unified compact schedule screen with `월 / 주` view selection and `전체 / PT / 오전반 / 초등부 / 일반부` schedule type.
+- `전체` and `PT` currently show the existing PT slot/reservation flow. `오전반`, `초등부`, and `일반부` currently show only the empty class-schedule state.
+- Admin schedule rows emphasize `time range / status / action`, with the week strip directly above the selected-day time list in week mode.
+- Member tabs are `홈 / 예약 / 내역`.
+- Member mode owns its own compact header: current tab title, member identity, visible approval state, and a member menu.
+- Member mode no longer renders the root admin topbar/status-line or the old full-width member selector toolbar.
+- Member `예약` keeps the PT reservation action flow, starts with the calendar section, and keeps the booking summary as a compact three-column row.
+- Static layout contracts cover the member compact header, admin-only root header, two-select admin schedule toolbar, compact schedule rows, month/week boundary, and PT-only data boundary.
 
 ## Next Actions
 
 1. Manually verify the live Supabase member-link flow with a non-admin Google account and an admin account.
-2. Design and wire MVP-required payment status RPC, including `pt_passes`, `payments`, and `payment_events` history.
-3. Design and wire MVP-required extension approval/rejection RPC, including `extension_requests`, PT권 만료일, and `pass_events.extension_request_id` history.
-4. Connect Kakao login UI if Kakao member login remains required for MVP.
-5. Design the real class-program data model before adding 오전반/초등부/일반부 capacity, attendance, or member reservation actions.
+2. Manually inspect mobile member `예약` to confirm the compact header/menu and calendar position feel right on device.
+3. Design and wire MVP-required payment status RPC, including `pt_passes`, `payments`, and `payment_events` history.
+4. Design and wire MVP-required extension approval/rejection RPC, including `extension_requests`, PT권 만료일, and `pass_events.extension_request_id` history.
+5. Connect Kakao login UI if Kakao member login remains required for MVP.
 
 ## Blockers / Notes
 
-- Rendered schedule-tab browser checks were not completed in this session because the active dev server loads Supabase auth from `.env.local`, so it does not expose the demo admin schedule without changing the server environment.
+- Rendered browser/device verification is still manual for this slice; static contracts and build cover structure, not visual feel.
 
 ## Last Verified
 
-- 2026-06-19: DB refetch slice and hardening verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
-- 2026-06-19: Schedule row compression verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
+- 2026-06-22: Member compact header slice verified RED with `npm run check:layout`; GREEN verified with `npm run check:layout`, `npm run build`, and `git diff --check`.
