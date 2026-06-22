@@ -71,6 +71,11 @@ assert(
 );
 
 assert(
+  !memberView.includes("authEmail") && !memberView.includes("member-inline-feedback"),
+  "approved member compact header should not expose login email or global login/status messages"
+);
+
+assert(
   !memberView.includes('className="toolbar"'),
   "member view should remove the old full-width toolbar member selector row"
 );

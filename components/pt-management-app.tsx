@@ -1216,8 +1216,6 @@ export function PtManagementApp() {
       ) : (
         <MemberView
           authStatus={authStatus}
-          authEmail={authEmail}
-          message={message}
           handleSignOut={handleSignOut}
           state={state}
           member={loggedInMember}
@@ -2331,8 +2329,6 @@ function SettingsMenuButton({
 
 function MemberView({
   authStatus,
-  authEmail,
-  message,
   handleSignOut,
   state,
   member,
@@ -2352,8 +2348,6 @@ function MemberView({
   slotFor
 }: {
   authStatus: AuthStatus;
-  authEmail: string;
-  message: string;
   handleSignOut: () => void | Promise<void>;
   state: AppState;
   member: Member;
@@ -2381,7 +2375,7 @@ function MemberView({
     booking: "PT 예약",
     history: "내역"
   };
-  const memberIdentity = member.name || authEmail || "회원";
+  const memberIdentity = member.name || "회원";
 
   useEffect(() => {
     if (!memberMenuOpen) {
@@ -2477,12 +2471,6 @@ function MemberView({
           )}
         </div>
       </header>
-
-      {message && authStatus !== "demo" && (
-        <section className="member-inline-feedback" aria-live="polite">
-          {message}
-        </section>
-      )}
 
       {memberTab === "home" && (
         <MemberHomeView

@@ -449,18 +449,6 @@ h3 {
   width: 100%;
 }
 
-.member-inline-feedback {
-  min-width: 0;
-  padding: 8px 10px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--row-radius);
-  background: var(--info-bg);
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
 .with-bottom-nav {
   position: relative;
 }
