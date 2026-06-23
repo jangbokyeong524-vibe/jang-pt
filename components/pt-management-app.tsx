@@ -1161,8 +1161,8 @@ export function PtManagementApp() {
   return (
     <main className={`app-shell ${mode === "member" ? "member-shell" : ""}`.trim()}>
       {mode === "admin" ? (
-        <>
-          <header className="topbar">
+        <section className="admin-app app-surface-flat with-bottom-nav">
+          <header className="admin-compact-header">
             <div className="admin-header-identity">
               <strong className="admin-header-brand">강동무에타이장</strong>
               <span className="admin-role-pill">관리자</span>
@@ -1205,7 +1205,7 @@ export function PtManagementApp() {
             </section>
           )}
 
-          <section className="app-surface-flat with-bottom-nav">
+          <>
             {adminTab === "home" && (
               <AdminHomeView
                 tasks={tasks}
@@ -1262,8 +1262,8 @@ export function PtManagementApp() {
               <TabButton active={adminTab === "members"} onClick={() => setAdminTab("members")} icon={<Users size={18} />} label="회원" />
               <TabButton active={adminTab === "settings"} onClick={() => setAdminTab("settings")} icon={<Settings size={18} />} label="설정" />
             </nav>
-          </section>
-        </>
+          </>
+        </section>
       ) : (
         <MemberView
           authStatus={authStatus}

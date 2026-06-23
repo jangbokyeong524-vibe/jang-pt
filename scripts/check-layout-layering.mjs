@@ -15,7 +15,7 @@ const rootReturnStart = component.indexOf("return (");
 const rootMemberBranchStart = component.indexOf('{mode === "admin" ? (', rootReturnStart);
 const rootMemberBranch =
   rootMemberBranchStart >= 0 ? component.slice(rootMemberBranchStart, component.indexOf("</main>", rootMemberBranchStart)) : "";
-const adminTopbarStart = rootMemberBranch.indexOf('className="topbar"');
+const adminTopbarStart = rootMemberBranch.indexOf('className="admin-compact-header"');
 const adminTopbarEnd = adminTopbarStart >= 0 ? rootMemberBranch.indexOf("</header>", adminTopbarStart) : -1;
 const adminTopbar =
   adminTopbarStart >= 0 && adminTopbarEnd > adminTopbarStart
@@ -55,8 +55,15 @@ assert(
 );
 
 assert(
-  /className="app-surface-flat with-bottom-nav"/.test(component),
+  /className="admin-app app-surface-flat with-bottom-nav"/.test(component),
   "admin shell should use the common flat app surface class"
+);
+
+assert(
+  /className="admin-app app-surface-flat with-bottom-nav"/.test(component) &&
+    rootMemberBranch.includes('className="admin-compact-header"') &&
+    !rootMemberBranch.includes('className="topbar"'),
+  "admin surface should mirror the member shell with its compact header inside the app surface"
 );
 
 assert(
@@ -71,7 +78,7 @@ assert(
 );
 
 assert(
-  /mode === "admin" \?[\s\S]*className="topbar"[\s\S]*className="status-line"[\s\S]*<MemberView/.test(rootMemberBranch),
+  /mode === "admin" \?[\s\S]*className="admin-compact-header"[\s\S]*className="status-line"[\s\S]*<MemberView/.test(rootMemberBranch),
   "member mode should not render the root topbar/status-line; admin mode should own the shared header"
 );
 
@@ -105,18 +112,19 @@ assert(
 );
 
 assert(
-  /\.topbar\s*\{(?![^}]*env\(safe-area-inset-top\))(?![^}]*margin:\s*-[^;}]*-[^;}]*;)[^}]*margin:\s*0\s+0\s+[0-9]+px[^}]*padding:\s*[0-9]+px\s+0/s.test(css),
+  /\.admin-compact-header\s*\{(?![^}]*env\(safe-area-inset-top\))(?![^}]*margin:\s*-[^;}]*-[^;}]*;)[^}]*margin:\s*0[^}]*padding:\s*4px\s+6px/s.test(css),
   "admin topbar should stay inside the app shell with no negative bleed or safe-area top padding"
 );
 
 assert(
-  /\.topbar\s*\{[^}]*width:\s*100%[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/s.test(css) &&
+  /\.admin-compact-header\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/s.test(css) &&
     /\.admin-header-actions\s*\{[^}]*justify-self:\s*end/s.test(css),
   "admin topbar should use the same constrained grid width pattern as the member compact header"
 );
 
 assert(
-  /\.topbar\s*\{[^}]*gap:\s*[0-8]px[^}]*padding:\s*[0-8]px\s+0/s.test(css) &&
+  /\.admin-app,\s*\.member-app\s*\{[^}]*display:\s*grid[^}]*gap:\s*[0-8]px/s.test(css) &&
+    /\.admin-compact-header\s*\{[^}]*min-height:\s*4[0-4]px[^}]*gap:\s*[0-8]px/s.test(css) &&
     /\.admin-header-brand\s*\{[^}]*font-size:\s*1[4-7]px[^}]*line-height:\s*1\.2[0-9]/s.test(css),
   "admin topbar should use compact vertical spacing and one-line brand type"
 );

@@ -25,7 +25,8 @@ phase: admin-minimal-header
 - Admin/member screens use bottom tabs.
 - Admin tabs are `홈 / 일정 / 회원 / 설정`.
 - Admin topbar is a one-line minimal header with `강동무에타이장`, an `관리자` pill, member switching, and an account menu.
-- Admin topbar uses a constrained grid width pattern so the brand side and action side stay inside the app shell like the member compact header.
+- Admin topbar lives inside `admin-app app-surface-flat with-bottom-nav` as `admin-compact-header`, mirroring the member compact header shell.
+- Admin topbar uses the member compact header grid-width pattern so the brand side and action side stay inside the app shell.
 - Admin topbar hides the login email until the account menu is opened; demo mode shows `데모 관리자` in that menu.
 - Admin status-line is conditional and suppresses initial login/account status messages.
 - Admin `일정` is a unified compact schedule screen with `월 / 주` view selection and `전체 / PT / 오전반 / 초등부 / 일반부` schedule type.
@@ -54,6 +55,7 @@ phase: admin-minimal-header
 
 ## Last Verified
 
+- 2026-06-23: Admin header shell moved inside the admin app surface to mirror the member compact header fix; verification ran `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-23: Admin minimal header width regression fixed with the member compact header grid-width pattern; verification ran `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-23: Admin minimal header/account-menu implementation verified RED/GREEN with `npm run check:layout`; final verification ran `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-22: Admin compact topbar/status-line verified RED/GREEN with `npm run check:layout`; final verification ran `npm run check:layout`, `npm run build`, and `git diff --check`.
