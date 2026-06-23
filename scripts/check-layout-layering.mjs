@@ -110,13 +110,19 @@ assert(
 );
 
 assert(
+  /\.topbar\s*\{[^}]*width:\s*100%[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/s.test(css) &&
+    /\.admin-header-actions\s*\{[^}]*justify-self:\s*end/s.test(css),
+  "admin topbar should use the same constrained grid width pattern as the member compact header"
+);
+
+assert(
   /\.topbar\s*\{[^}]*gap:\s*[0-8]px[^}]*padding:\s*[0-8]px\s+0/s.test(css) &&
     /\.admin-header-brand\s*\{[^}]*font-size:\s*1[4-7]px[^}]*line-height:\s*1\.2[0-9]/s.test(css),
   "admin topbar should use compact vertical spacing and one-line brand type"
 );
 
 assert(
-  /\.admin-header-actions\s*\{[^}]*display:\s*flex[^}]*gap:\s*[4-8]px/s.test(css) &&
+  /\.admin-header-actions\s*\{[^}]*display:\s*flex[^}]*justify-self:\s*end[^}]*gap:\s*[4-8]px/s.test(css) &&
     /\.admin-header-actions\s+\.segmented\s*\{[^}]*min-height:\s*3[2-8]px[^}]*padding:\s*0\s+1[0-2]px[^}]*font-size:\s*13px/s.test(css),
   "admin/member mode switch in the admin topbar should be a compact header action"
 );
