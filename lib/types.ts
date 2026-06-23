@@ -110,6 +110,7 @@ export type PassEvent = {
   passId: string;
   memberId: string;
   reservationId?: string;
+  extensionRequestId?: string;
   eventType:
     | "pass_created"
     | "session_completed"

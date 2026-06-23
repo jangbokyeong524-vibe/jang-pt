@@ -522,6 +522,198 @@ $$;
 
 grant execute on function public.change_payment_status(uuid, text, text) to authenticated;
 
+create or replace function public.request_extension(
+  target_pass_id uuid,
+  request_reason text,
+  request_days integer
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_member_id uuid;
+  target_pass public.pt_passes%rowtype;
+  extension_policy jsonb;
+  member_request_enabled boolean;
+  new_request_id uuid;
+begin
+  current_member_id := public.approved_member_id();
+
+  if current_member_id is null then
+    raise exception 'approved member only';
+  end if;
+
+  if request_days is null or request_days <= 0 then
+    raise exception 'request days must be positive';
+  end if;
+
+  if nullif(trim(coalesce(request_reason, '')), '') is null then
+    raise exception 'request reason required';
+  end if;
+
+  extension_policy := public.active_policy_settings() -> 'extension';
+  member_request_enabled := coalesce((extension_policy ->> 'memberRequestEnabled')::boolean, true);
+
+  if not member_request_enabled then
+    raise exception 'extension requests disabled';
+  end if;
+
+  select *
+  into target_pass
+  from public.pt_passes
+  where id = target_pass_id
+    and member_id = current_member_id
+    and active = true;
+
+  if not found then
+    raise exception 'active pass not found';
+  end if;
+
+  insert into public.extension_requests (
+    member_id,
+    pass_id,
+    reason,
+    days,
+    status,
+    requested_at
+  )
+  values (
+    current_member_id,
+    target_pass.id,
+    trim(request_reason),
+    request_days,
+    'requested',
+    now()
+  )
+  returning id into new_request_id;
+
+  return new_request_id;
+end;
+$$;
+
+grant execute on function public.request_extension(uuid, text, integer) to authenticated;
+
+create or replace function public.approve_extension_request(target_request_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_request public.extension_requests%rowtype;
+  target_pass public.pt_passes%rowtype;
+begin
+  if not public.is_admin() then
+    raise exception 'admin only';
+  end if;
+
+  select *
+  into target_request
+  from public.extension_requests
+  where id = target_request_id
+  for update;
+
+  if not found then
+    raise exception 'extension request not found';
+  end if;
+
+  select *
+  into target_pass
+  from public.pt_passes
+  where id = target_request.pass_id
+  for update;
+
+  if not found then
+    raise exception 'pass not found';
+  end if;
+
+  if target_request.status <> 'requested' then
+    return target_request.id;
+  end if;
+
+  with inserted_event as (
+    insert into public.pass_events (
+      pass_id,
+      member_id,
+      extension_request_id,
+      event_type,
+      delta_count,
+      reason,
+      actor_auth_user_id,
+      actor_role
+    )
+    values (
+      target_pass.id,
+      target_pass.member_id,
+      target_request.id,
+      'extension_added',
+      0,
+      target_request.reason || ' ' || target_request.days || '일 연장',
+      auth.uid(),
+      'admin'
+    )
+    on conflict do nothing
+    returning 1
+  )
+  update public.pt_passes
+  set expires_on = expires_on + target_request.days,
+      updated_at = now()
+  where id = target_pass.id
+    and exists (select 1 from inserted_event);
+
+  update public.extension_requests
+  set status = 'approved',
+      decided_by = auth.uid(),
+      decided_at = now()
+  where id = target_request.id;
+
+  return target_request.id;
+end;
+$$;
+
+grant execute on function public.approve_extension_request(uuid) to authenticated;
+
+create or replace function public.reject_extension_request(target_request_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_request public.extension_requests%rowtype;
+begin
+  if not public.is_admin() then
+    raise exception 'admin only';
+  end if;
+
+  select *
+  into target_request
+  from public.extension_requests
+  where id = target_request_id
+  for update;
+
+  if not found then
+    raise exception 'extension request not found';
+  end if;
+
+  if target_request.status <> 'requested' then
+    return target_request.id;
+  end if;
+
+  update public.extension_requests
+  set status = 'rejected',
+      decided_by = auth.uid(),
+      decided_at = now()
+  where id = target_request.id;
+
+  return target_request.id;
+end;
+$$;
+
+grant execute on function public.reject_extension_request(uuid) to authenticated;
+
 create or replace function public.request_reservation(target_slot_id uuid, target_pass_id uuid)
 returns uuid
 language plpgsql
@@ -1206,12 +1398,6 @@ create policy "members read own extension requests"
   using (member_id = public.approved_member_id());
 
 drop policy if exists "members create own extension requests" on public.extension_requests;
-create policy "members create own extension requests"
-  on public.extension_requests for insert
-  with check (
-    member_id = public.approved_member_id()
-    and status = 'requested'
-  );
 
 drop policy if exists "admins manage notifications" on public.notifications;
 create policy "admins manage notifications"

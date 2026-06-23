@@ -268,17 +268,21 @@ DB 트랜잭션 확인:
 
 시나리오:
 
-1. 회원이 질병/부상 등 사유로 연장을 요청한다.
-2. 관장이 연장 요청을 승인한다.
+1. 회원이 `request_extension`으로 질병/부상 등 사유와 양수 일수를 담아 연장을 요청한다.
+2. 관장이 `approve_extension_request`로 연장 요청을 승인한다.
+3. 다른 요청은 관장이 `reject_extension_request`로 거절한다.
 
 기대 결과:
 
+- 회원 요청 생성 후 `extension_requests.status = requested`가 된다.
 - `extension_requests.status`가 `approved`가 된다.
 - PT권 만료일이 요청 일수만큼 늘어난다.
 - `pass_events`에 `extension_added` 이력이 남고 해당 이벤트가 `extension_requests.id`와 연결된다.
-- 승인 요청을 반복 실행해도 만료일과 `pass_events`가 중복 반영되지 않는다.
-- 관리자 권한이 없으면 승인/거절할 수 없다.
-- 회원은 본인 연장요청을 만들고 읽을 수 있지만, 직접 `approved`나 `rejected`로 바꿀 수 없다.
+- `approve_extension_request`를 반복 실행해도 만료일과 `pass_events`가 중복 반영되지 않는다.
+- `reject_extension_request`는 요청 상태와 처리자만 바꾸고 PT권 만료일과 `pass_events`는 바꾸지 않는다.
+- 관리자 권한이 없으면 `approve_extension_request`, `reject_extension_request`를 실행할 수 없다.
+- 회원은 본인 연장요청을 만들고 읽을 수 있지만, 직접 `extension_requests insert/update`로 `requested`, `approved`, `rejected`를 만들거나 바꿀 수 없다.
+- Supabase env가 없는 로컬 fallback에서도 요청 생성, 승인, 중복 승인 방지, 거절 규칙이 동일하게 동작한다.
 
 ## 13. 재등록 테스트
 

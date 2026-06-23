@@ -7,6 +7,7 @@ const testPlan = readFileSync("docs/TEST_PLAN.md", "utf8");
 const adapter = readFileSync("lib/reservation-actions.ts", "utf8");
 const passAdapter = readFileSync("lib/pass-actions.ts", "utf8");
 const paymentAdapter = existsSync("lib/payment-actions.ts") ? readFileSync("lib/payment-actions.ts", "utf8") : "";
+const extensionAdapter = existsSync("lib/extension-actions.ts") ? readFileSync("lib/extension-actions.ts", "utf8") : "";
 
 const failures = [];
 
@@ -104,6 +105,67 @@ assert(
   "change_payment_status should be executable through explicit grants"
 );
 
+const extensionRpcNames = [
+  "request_extension",
+  "approve_extension_request",
+  "reject_extension_request"
+];
+
+for (const rpcName of extensionRpcNames) {
+  const functionPattern = new RegExp(`create or replace function public\\.${rpcName}\\s*\\(`, "i");
+  assert(functionPattern.test(schema), `${rpcName} RPC should be defined in Supabase schema`);
+  assert(extensionAdapter.includes(`"${rpcName}"`), `${rpcName} RPC should be represented in the extension action adapter`);
+
+  const bodyMatch = schema.match(
+    new RegExp(`create or replace function public\\.${rpcName}[\\s\\S]*?\\n\\$\\$;`, "i")
+  );
+
+  assert(bodyMatch?.[0].includes("security definer"), `${rpcName} should be security definer`);
+}
+
+{
+  const bodyMatch = schema.match(
+    /create or replace function public\.request_extension[\s\S]*?\n\$\$;/i
+  );
+
+  assert(bodyMatch?.[0].includes("public.approved_member_id()"), "request_extension should guard approved member access");
+}
+
+for (const adminRpcName of ["approve_extension_request", "reject_extension_request"]) {
+  const bodyMatch = schema.match(
+    new RegExp(`create or replace function public\\.${adminRpcName}[\\s\\S]*?\\n\\$\\$;`, "i")
+  );
+
+  assert(bodyMatch?.[0].includes("public.is_admin()"), `${adminRpcName} should guard admin access`);
+}
+
+{
+  const bodyMatch = schema.match(
+    /create or replace function public\.approve_extension_request[\s\S]*?\n\$\$;/i
+  );
+
+  for (const requiredToken of ["extension_requests", "pt_passes", "pass_events", "extension_request_id"]) {
+    assert(bodyMatch?.[0].includes(requiredToken), `approve_extension_request should reference ${requiredToken}`);
+  }
+}
+
+assert(
+  schema.includes("pass_events_one_extension_per_request_idx"),
+  "pass event unique index should prevent duplicate extension approvals per request"
+);
+
+assert(
+  !schema.includes('create policy "members create own extension requests"'),
+  "members must not insert extension requests directly; use request_extension RPC"
+);
+
+for (const rpcName of extensionRpcNames) {
+  assert(
+    schema.includes(`grant execute on function public.${rpcName}`),
+    `${rpcName} should be executable through explicit grants`
+  );
+}
+
 assert(
   !schema.includes('create policy "members create own reservation requests"'),
   "members must not insert reservations directly; use request_reservation RPC"
@@ -127,6 +189,12 @@ assert(
 
 for (const doc of [dataModel, security, testPlan]) {
   for (const rpcName of rpcNames.slice(0, 5)) {
+    assert(doc.includes(rpcName), `docs should describe ${rpcName}`);
+  }
+}
+
+for (const doc of [dataModel, security, testPlan]) {
+  for (const rpcName of extensionRpcNames) {
     assert(doc.includes(rpcName), `docs should describe ${rpcName}`);
   }
 }

@@ -119,11 +119,12 @@
 - 회원은 결제상태와 결제 이력을 읽을 수 있지만 직접 변경할 수 없다.
 - 회원에게는 본인 결제상태만 보여준다.
 
-## 8. 연장 승인 보안
+## 8. 연장 요청/승인 보안
 
-- 회원은 본인 PT권에 대한 연장 요청을 만들고 읽을 수 있다.
-- 회원은 `extension_requests.status`, `decided_by`, `decided_at`을 직접 바꿀 수 없다.
-- 연장 승인/거절은 관리자만 가능해야 한다.
+- 회원은 `request_extension` RPC로만 본인 활성 PT권에 대한 연장 요청을 만들고 읽을 수 있다.
+- 회원은 `extension_requests`를 직접 `insert/update`할 수 없다.
+- `request_extension`은 `approved_member_id()`로 승인 회원을 확인하고 양수 일수와 빈 값이 아닌 사유만 허용한다.
+- `approve_extension_request`, `reject_extension_request`는 `is_admin()`으로 확인된 관리자만 가능해야 한다.
 - 승인 시 `extension_requests.status`, `pt_passes.expires_on`, `pass_events.extension_added`가 하나의 서버 트랜잭션으로 함께 바뀌어야 한다.
 - 같은 연장 요청은 한 번만 만료일에 반영되어야 하며, `pass_events.extension_request_id` 기준 중복 이력을 막아야 한다.
 - 거절 시 만료일과 `pass_events`를 변경하지 않는다.
@@ -170,7 +171,8 @@
 - 관리자 권한이 `admin_users`로만 판정되는가
 - 수업완료 중복 클릭에도 1회만 차감되는가
 - 예약 요청/취소가 직접 `reservations insert/update`가 아니라 RPC로만 가능한가
+- 연장 요청 생성이 직접 `extension_requests insert`가 아니라 `request_extension`으로만 가능한가
 - 결제 상태 변경 이력이 남는가
 - 결제상태 변경이 관리자 서버 경계에서만 처리되는가
-- 연장 승인/거절이 관리자 서버 경계에서만 처리되는가
+- 연장 승인/거절이 `approve_extension_request`, `reject_extension_request` 관리자 서버 경계에서만 처리되는가
 - 같은 연장 요청 승인 재시도에도 만료일과 `extension_added` 이력이 중복 반영되지 않는가

@@ -72,6 +72,7 @@ type PassEventRow = {
   pass_id: string;
   member_id: string;
   reservation_id: string | null;
+  extension_request_id: string | null;
   event_type: PassEvent["eventType"];
   delta_count: number;
   reason: string;
@@ -313,6 +314,7 @@ function mapPassEvent(row: PassEventRow): PassEvent {
     passId: row.pass_id,
     memberId: row.member_id,
     reservationId: row.reservation_id ?? undefined,
+    extensionRequestId: row.extension_request_id ?? undefined,
     eventType: row.event_type,
     deltaCount: row.delta_count,
     reason: row.reason,
@@ -426,7 +428,7 @@ export async function fetchOperationalDataAction({
     supabase.from("pt_pass_products").select("id, sessions, name, price, default_valid_days, active").order("sessions", { ascending: true }),
     supabase.from("policy_settings").select("settings").eq("active", true).order("created_at", { ascending: false }).limit(1),
     supabase.from("pt_passes").select("id, member_id, product_id, total_sessions, remaining_sessions, price, payment_status, starts_on, expires_on, active, policy_snapshot").order("created_at", { ascending: false }),
-    supabase.from("pass_events").select("id, pass_id, member_id, reservation_id, event_type, delta_count, reason, actor_role, created_at").order("created_at", { ascending: false }),
+    supabase.from("pass_events").select("id, pass_id, member_id, reservation_id, extension_request_id, event_type, delta_count, reason, actor_role, created_at").order("created_at", { ascending: false }),
     supabase.from("availability_slots").select("id, start_at, end_at, status, held_until").order("start_at", { ascending: true }),
     supabase.from("reservations").select("id, member_id, pass_id, slot_id, status, requested_at, locked_until, confirmed_at, completed_at, cancelled_at, cancel_reason, deduct_on_cancel, policy_snapshot").order("requested_at", { ascending: false }),
     supabase.from("payments").select("id, member_id, pass_id, amount, status, method, boxpos_reference, memo, updated_at").order("updated_at", { ascending: false }),

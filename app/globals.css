@@ -1972,6 +1972,34 @@ textarea {
   margin-top: 12px;
 }
 
+.extension-request-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px auto;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.extension-request-form input[aria-label="직접 입력 사유"] {
+  grid-column: 1 / -1;
+}
+
+.extension-request-form select,
+.extension-request-form input {
+  min-width: 0;
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0 10px;
+  font: inherit;
+}
+
+.extension-request-form button {
+  min-height: 36px;
+}
+
 .member-alert,
 .member-guidance-item,
 .member-history-card,
@@ -2406,6 +2434,14 @@ textarea {
   .member-dashboard,
   .member-history-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .extension-request-form {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr) 72px auto;
+  }
+
+  .extension-request-form input[aria-label="직접 입력 사유"] {
+    grid-column: auto;
   }
 
   .available-grid {

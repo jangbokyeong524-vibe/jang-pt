@@ -20,6 +20,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import Script from "next/script";
 import {
+  approveExtensionRequestAction,
+  rejectExtensionRequestAction,
+  requestExtensionAction
+} from "@/lib/extension-actions";
+import {
   approveExistingMemberLinkAction,
   approveNewMemberLinkAction,
   fetchMemberLinkReviewDataAction,
@@ -986,45 +991,161 @@ export function PtManagementApp() {
     }
   }
 
-  function approveExtension(requestId: string) {
-    setState((current) => {
-      const request = current.extensionRequests.find((item) => item.id === requestId);
-      const pass = request ? current.passes.find((item) => item.id === request.passId) : undefined;
+  async function requestExtension(passId: string, reason: string, days: number) {
+    const normalizedReason = reason.trim();
 
-      if (!request || !pass) {
-        return current;
-      }
+    try {
+      await requestExtensionAction({
+        supabase,
+        targetPassId: passId,
+        reason: normalizedReason,
+        days,
+        fallback: () => {
+          const newRequestId = makeId("extension");
+          const pass = state.passes.find((item) => item.id === passId && item.active);
 
-      const nextExpiry = addDays(new Date(`${pass.expiresOn}T00:00:00`), request.days)
-        .toISOString()
-        .slice(0, 10);
+          if (!pass || !state.policies.extension.memberRequestEnabled || days <= 0 || !normalizedReason) {
+            throw new Error("invalid extension request");
+          }
 
-      return {
-        ...current,
-        extensionRequests: current.extensionRequests.map((item) =>
-          item.id === requestId
-            ? { ...item, status: "approved", decidedAt: new Date().toISOString() }
-            : item
-        ),
-        passes: current.passes.map((item) =>
-          item.id === pass.id ? { ...item, expiresOn: nextExpiry } : item
-        ),
-        passEvents: [
-          {
-            id: makeId("event"),
-            passId: pass.id,
-            memberId: pass.memberId,
-            eventType: "extension_added",
-            deltaCount: 0,
-            reason: `${request.reason} ${request.days}일 연장`,
-            actor: "admin",
-            createdAt: new Date().toISOString()
-          },
-          ...current.passEvents
-        ]
-      };
-    });
-    setMessage("연장 요청을 승인했습니다.");
+          setState((current) => {
+            return {
+              ...current,
+              extensionRequests: [
+                {
+                  id: newRequestId,
+                  memberId: pass.memberId,
+                  passId: pass.id,
+                  reason: normalizedReason,
+                  days,
+                  status: "requested",
+                  requestedAt: new Date().toISOString()
+                },
+                ...current.extensionRequests
+              ]
+            };
+          });
+
+          return newRequestId;
+        }
+      });
+    } catch {
+      setMessage("연장 요청에 실패했습니다.");
+      return;
+    }
+
+    try {
+      await refreshOperationalData();
+      setMessage("연장 요청을 접수했습니다.");
+    } catch {
+      setMessage("연장 요청은 완료됐지만 최신 데이터 새로고침에 실패했습니다.");
+    }
+  }
+
+  async function approveExtension(requestId: string) {
+    try {
+      await approveExtensionRequestAction({
+        supabase,
+        targetRequestId: requestId,
+        fallback: () => {
+          setState((current) => {
+            const request = current.extensionRequests.find((item) => item.id === requestId);
+            const pass = request ? current.passes.find((item) => item.id === request.passId) : undefined;
+
+            if (!request || !pass) {
+              return current;
+            }
+
+            if (request.status !== "requested") {
+              return current;
+            }
+
+            const alreadyApplied = current.passEvents.some(
+              (event) => event.eventType === "extension_added" && event.extensionRequestId === requestId
+            );
+            const decidedAt = new Date().toISOString();
+            const nextExpiry = alreadyApplied
+              ? pass.expiresOn
+              : addDays(new Date(`${pass.expiresOn}T00:00:00`), request.days)
+                  .toISOString()
+                  .slice(0, 10);
+
+            return {
+              ...current,
+              extensionRequests: current.extensionRequests.map((item) =>
+                item.id === requestId
+                  ? { ...item, status: "approved", decidedAt }
+                  : item
+              ),
+              passes: alreadyApplied
+                ? current.passes
+                : current.passes.map((item) =>
+                    item.id === pass.id ? { ...item, expiresOn: nextExpiry } : item
+                  ),
+              passEvents: alreadyApplied
+                ? current.passEvents
+                : [
+                    {
+                      id: makeId("event"),
+                      passId: pass.id,
+                      memberId: pass.memberId,
+                      extensionRequestId: requestId,
+                      eventType: "extension_added",
+                      deltaCount: 0,
+                      reason: `${request.reason} ${request.days}일 연장`,
+                      actor: "admin",
+                      createdAt: decidedAt
+                    },
+                    ...current.passEvents
+                  ]
+            };
+          });
+
+          return requestId;
+        }
+      });
+    } catch {
+      setMessage("연장 요청 승인에 실패했습니다.");
+      return;
+    }
+
+    try {
+      await refreshOperationalData();
+      setMessage("연장 요청을 승인했습니다.");
+    } catch {
+      setMessage("연장 요청 승인은 완료됐지만 최신 데이터 새로고침에 실패했습니다.");
+    }
+  }
+
+  async function rejectExtension(requestId: string) {
+    try {
+      await rejectExtensionRequestAction({
+        supabase,
+        targetRequestId: requestId,
+        fallback: () => {
+          setState((current) => ({
+            ...current,
+            extensionRequests: current.extensionRequests.map((item) =>
+              item.id === requestId && item.status === "requested"
+                ? { ...item, status: "rejected", decidedAt: new Date().toISOString() }
+                : item
+            )
+          }));
+
+          return requestId;
+        }
+      });
+    } catch {
+      setMessage("연장 요청 거절에 실패했습니다.");
+      return;
+    }
+
+    try {
+      await refreshOperationalData();
+      setMessage("연장 요청을 거절했습니다.");
+    } catch {
+      setMessage("연장 요청 거절은 완료됐지만 최신 데이터 새로고침에 실패했습니다.");
+    }
   }
 
   async function addPass(memberId: string, productId: string) {
@@ -1298,6 +1419,7 @@ export function PtManagementApp() {
                 approveNewMemberLink={approveNewMemberLink}
                 rejectMemberLink={rejectMemberLink}
                 approveExtension={approveExtension}
+                rejectExtension={rejectExtension}
               />
             )}
 
@@ -1336,6 +1458,7 @@ export function PtManagementApp() {
           weekDays={weekDays}
           requestBooking={requestBooking}
           requestCancel={requestCancel}
+          requestExtension={requestExtension}
           slotFor={slotFor}
         />
       )}
@@ -1861,7 +1984,8 @@ function MembersView({
   approveExistingMemberLink,
   approveNewMemberLink,
   rejectMemberLink,
-  approveExtension
+  approveExtension,
+  rejectExtension
 }: {
   state: AppState;
   selectedMember: Member;
@@ -1876,6 +2000,7 @@ function MembersView({
   approveNewMemberLink: (requestId: string) => void;
   rejectMemberLink: (requestId: string) => void;
   approveExtension: (requestId: string) => void;
+  rejectExtension: (requestId: string) => void;
 }) {
   return (
     <div className="split-layout">
@@ -1983,6 +2108,9 @@ function MembersView({
                   </span>
                   <button className="small-button" onClick={() => approveExtension(request.id)}>
                     연장 승인
+                  </button>
+                  <button className="small-button ghost" onClick={() => rejectExtension(request.id)}>
+                    거절
                   </button>
                 </div>
               ))}
@@ -2449,6 +2577,7 @@ function MemberView({
   weekDays,
   requestBooking,
   requestCancel,
+  requestExtension,
   slotFor
 }: {
   authStatus: AuthStatus;
@@ -2468,6 +2597,7 @@ function MemberView({
   weekDays: Array<{ day: string; slots: AvailabilitySlot[] }>;
   requestBooking: (slotId: string) => void;
   requestCancel: (reservationId: string) => void;
+  requestExtension: (passId: string, reason: string, days: number) => Promise<void>;
   slotFor: (slotId: string) => AvailabilitySlot | undefined;
 }) {
   const linkRequest = state.memberLinkRequests.find((request) => request.memberId === memberSessionId);
@@ -2620,6 +2750,7 @@ function MemberView({
           passEvents={passEvents}
           payments={payments}
           extensionRequests={extensionRequests}
+          requestExtension={requestExtension}
           slotFor={slotFor}
         />
       )}
@@ -2880,6 +3011,7 @@ function MemberHistoryView({
   passEvents,
   payments,
   extensionRequests,
+  requestExtension,
   slotFor
 }: {
   state: AppState;
@@ -2889,9 +3021,34 @@ function MemberHistoryView({
   passEvents: PassEvent[];
   payments: Payment[];
   extensionRequests: ExtensionRequest[];
+  requestExtension: (passId: string, reason: string, days: number) => Promise<void>;
   slotFor: (slotId: string) => AvailabilitySlot | undefined;
 }) {
   const renewalNeeded = activePass ? shouldRenew(activePass, state) : false;
+  const defaultExtensionReason = state.policies.extension.defaultReasons[0] ?? "";
+  const [extensionReason, setExtensionReason] = useState(defaultExtensionReason);
+  const [customExtensionReason, setCustomExtensionReason] = useState("");
+  const [extensionDays, setExtensionDays] = useState("7");
+  const canRequestExtension = Boolean(activePass && state.policies.extension.memberRequestEnabled);
+
+  async function handleExtensionSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!activePass) {
+      return;
+    }
+
+    const reason = (customExtensionReason.trim() || extensionReason).trim();
+    const days = Number.parseInt(extensionDays, 10);
+
+    if (!canRequestExtension || !reason || !Number.isInteger(days) || days <= 0) {
+      return;
+    }
+
+    await requestExtension(activePass.id, reason, days);
+    setCustomExtensionReason("");
+    setExtensionDays("7");
+  }
 
   return (
     <div className="member-dashboard">
@@ -2948,6 +3105,44 @@ function MemberHistoryView({
 
       <section className="section-band">
         <h3>연장 요청 상태</h3>
+        <form className="extension-request-form" onSubmit={handleExtensionSubmit}>
+          <select
+            aria-label="연장 요청 사유"
+            value={extensionReason}
+            onChange={(event) => setExtensionReason(event.target.value)}
+            disabled={!canRequestExtension || state.policies.extension.defaultReasons.length === 0}
+          >
+            {state.policies.extension.defaultReasons.map((reason) => (
+              <option value={reason} key={reason}>
+                {reason}
+              </option>
+            ))}
+          </select>
+          <input
+            aria-label="직접 입력 사유"
+            value={customExtensionReason}
+            onChange={(event) => setCustomExtensionReason(event.target.value)}
+            placeholder="직접 입력"
+            disabled={!canRequestExtension}
+          />
+          <input
+            aria-label="연장 요청 일수"
+            min="1"
+            inputMode="numeric"
+            type="number"
+            value={extensionDays}
+            onChange={(event) => setExtensionDays(event.target.value)}
+            disabled={!canRequestExtension}
+          />
+          <button className="small-button" type="submit" disabled={!canRequestExtension}>
+            요청
+          </button>
+        </form>
+        {!canRequestExtension && (
+          <div className="empty-state">
+            {activePass ? "현재 정책에서는 회원 연장 요청이 꺼져 있습니다." : "활성 PT권이 있어야 연장 요청을 남길 수 있습니다."}
+          </div>
+        )}
         <div className="member-history-list">
           {extensionRequests.map((request) => (
             <div className="member-history-card" key={request.id}>

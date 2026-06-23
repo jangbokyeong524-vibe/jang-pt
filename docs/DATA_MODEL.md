@@ -273,7 +273,7 @@ PT권 결제 상태.
 - `status`: `requested`, `approved`, `rejected`
 - `decided_by`, `decided_at`: 처리자와 처리 시간
 
-승인 시 PT권 만료일을 늘리고 `pass_events`에 `extension_added`를 기록한다. 승인 이벤트는 `extension_request_id`로 원 요청과 연결되어야 하며 같은 요청이 두 번 승인되어 만료일이 중복 증가하면 안 된다.
+회원 요청 생성은 `request_extension` RPC만 사용한다. 승인 시 `approve_extension_request` RPC가 PT권 만료일을 늘리고 `pass_events`에 `extension_added`를 기록한다. 거절 시 `reject_extension_request` RPC가 요청 상태와 처리자만 기록한다. 승인 이벤트는 `extension_request_id`로 원 요청과 연결되어야 하며 같은 요청이 두 번 승인되어 만료일이 중복 증가하면 안 된다.
 
 ### `notifications`
 
@@ -417,23 +417,25 @@ PT권 결제 상태.
 - 이미 같은 상태면 기존 결제 id를 반환하고 `payment_events`를 추가하지 않음
 - 재시도 시 불일치 상태로 일부 테이블만 변경되면 안 됨
 
-### 연장 승인 RPC 또는 관리자 서버 트랜잭션
+### 연장 요청/승인 RPC
 
 운영 MVP 완료 전 필수 보강 범위다.
 
 검증:
 
-- 관리자만 실행 가능
-- 연장 요청 상태가 `requested`여야 함
-- 대상 `extension_requests.pass_id`가 같은 회원의 활성 PT권이어야 함
+- `request_extension`은 `approved_member_id()`로 승인 회원만 실행 가능
+- `request_extension`은 본인의 활성 PT권, 양수 일수, 빈 값이 아닌 사유만 허용
+- `approve_extension_request`, `reject_extension_request`는 `is_admin()`으로 관리자만 실행 가능
+- 승인/거절 대상 요청 상태가 `requested`여야 함
 
 처리:
 
+- `request_extension`은 `extension_requests.status = requested` row를 생성
 - 승인 시 `extension_requests.status`를 `approved`로 변경하고 `decided_by`, `decided_at`을 기록
 - 승인 시 `pt_passes.expires_on`을 요청 일수만큼 연장
 - 승인 시 `pass_events`에 `extension_added` 이벤트를 `extension_request_id`와 함께 기록
 - 같은 `extension_request_id`의 `extension_added` 이벤트가 이미 있으면 만료일을 다시 늘리지 않음
-- 거절 시 만료일과 `pass_events`는 바꾸지 않고 요청 상태와 처리자만 기록
+- 거절 시 `reject_extension_request`가 만료일과 `pass_events`는 바꾸지 않고 요청 상태와 처리자만 기록
 
 ## 12. RLS 요약
 
@@ -446,14 +448,14 @@ PT권 결제 상태.
 
 - 승인된 본인 `member_id` 데이터만 조회 가능
 - 예약 생성과 취소 변경은 직접 `insert/update`가 아니라 `request_reservation`, `request_reservation_cancel` RPC만 사용
-- 본인 연장요청 생성과 조회만 가능
+- 연장 요청 생성은 직접 `insert`가 아니라 `request_extension` RPC만 사용하고 본인 요청만 조회 가능
 - 기준 함수: `approved_member_id()`
 
 주의:
 
 - 회원의 직접 `reservations insert/update` 정책은 두지 않는다.
-- 회원의 직접 `extension_requests update` 정책은 두지 않는다.
-- 결제상태 변경과 연장 승인/거절은 관리자 권한이 확인되는 서버 경계에서만 처리한다.
+- 회원의 직접 `extension_requests insert/update` 정책은 두지 않는다.
+- 결제상태 변경과 연장 승인/거절은 `change_payment_status`, `approve_extension_request`, `reject_extension_request`처럼 권한이 확인되는 서버 경계에서만 처리한다.
 - PT권 소유 여부, 슬롯 상태, 예약 개수 제한, 미납 예약 허용 여부, 24시간 취소 기준은 예약 RPC에서 트랜잭션으로 강제한다.
 
 회원이 볼 수 없는 것:

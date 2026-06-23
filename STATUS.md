@@ -2,7 +2,7 @@
 
 updated: 2026-06-23
 mode: codex-resume-index
-phase: payment-status-rpc
+phase: extension-request-rpc
 
 ## Rules
 
@@ -21,7 +21,7 @@ phase: payment-status-rpc
 
 - Product scope remains a PT member booking MVP, not a full gym management app.
 - Local demo UI still uses `lib/seed-data.ts` for most operational data.
-- Supabase Auth/RLS and reservation/member-link RPC boundaries are partially wired, with local fallback behavior when Supabase env is missing.
+- Supabase Auth/RLS, reservation/member-link, PT권 등록, 결제상태 변경, and 연장 요청/승인/거절 RPC boundaries are wired with local fallback behavior when Supabase env is missing.
 - Admin/member screens use bottom tabs.
 - Admin tabs are `홈 / 일정 / 회원 / 설정`.
 - Admin topbar is a one-line minimal header with `강동무에타이장`, an `관리자` pill, member switching, and an account menu.
@@ -43,20 +43,25 @@ phase: payment-status-rpc
 - Static layout contracts cover the admin minimal topbar/account menu/status-line, member compact header, member-mode top whitespace, admin-only root header, two-select admin schedule toolbar, compact schedule rows, month/week boundary, and PT-only data boundary.
 - PT권 등록 uses `create_pt_pass` when Supabase is configured and keeps the existing local fallback when Supabase env is missing.
 - 결제상태 변경 uses `change_payment_status` when Supabase is configured and keeps local fallback/no-op retry behavior when Supabase env is missing.
+- 연장 요청 uses `request_extension`; 관리자 approval/rejection uses `approve_extension_request` / `reject_extension_request`.
+- Extension approval is idempotent through `pass_events.extension_request_id` plus `pass_events_one_extension_per_request_idx`; local fallback mirrors this rule.
+- Member `내역` contains the extension request form. Admin `회원 > 승인 대기` contains approve/reject controls.
 
 ## Next Actions
 
-1. Manually verify the live Supabase member-link flow with a non-admin Google account and an admin account.
-2. Manually inspect mobile member `예약` to confirm the compact header/menu and calendar position feel right on device.
-3. Wire MVP-required extension approval/rejection RPC, including `extension_requests`, PT권 만료일, and `pass_events.extension_request_id` history.
-4. Connect Kakao login UI if Kakao member login remains required for MVP.
+1. Apply `docs/supabase-schema.sql` to the live Supabase project and run live extension RPC checks with member/admin claims.
+2. Manually verify the live Supabase member-link flow with a non-admin Google account and an admin account.
+3. Manually inspect mobile member `예약` and `내역` to confirm compact header/menu, calendar position, and extension form density.
+4. Slice 4 candidate: Connect Kakao login UI if Kakao member login remains required for MVP.
 
 ## Blockers / Notes
 
 - Rendered browser/device verification is still manual for this slice; static contracts and build cover structure, not visual feel.
+- Live Supabase RPC verification still requires applying the updated schema to the target project.
 
 ## Last Verified
 
+- 2026-06-23: Extension request RPC slice verified RED/GREEN with `npm run check:layout`; build verified with `npm run build`.
 - 2026-06-23: Payment status RPC slice verified RED/GREEN with `npm run check:layout`; final verification ran `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-23: PT pass creation RPC slice verified RED/GREEN with `npm run check:layout`; final verification ran `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-23: Admin/member compact header top-edge alignment verified with browser DOM rects (`x=12, y=0, width=366, height=53` for both), `npm run check:layout`, `npm run build`, and `git diff --check`.
