@@ -75,6 +75,7 @@ textarea:focus-visible {
   padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
 
+.admin-shell,
 .member-shell {
   padding-top: 0;
 }

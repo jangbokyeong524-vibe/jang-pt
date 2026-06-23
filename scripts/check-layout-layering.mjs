@@ -72,9 +72,15 @@ assert(
 );
 
 assert(
-  component.includes('className={`app-shell ${mode === "member" ? "member-shell" : ""}`.trim()}') &&
+  component.includes('className={`app-shell ${mode === "admin" ? "admin-shell" : "member-shell"}`.trim()}') &&
     /\.member-shell\s*\{[^}]*padding-top:\s*0/s.test(css),
   "member mode should remove the shared app-shell top padding so the compact header starts near the viewport top"
+);
+
+assert(
+  component.includes('mode === "admin" ? "admin-shell" : "member-shell"') &&
+    /\.admin-shell,\s*\.member-shell\s*\{[^}]*padding-top:\s*0/s.test(css),
+  "admin and member modes should share the same zero top padding so compact headers start at the same viewport edge"
 );
 
 assert(
