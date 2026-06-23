@@ -242,6 +242,7 @@ PT권 결제 상태.
 - `boxpos_reference`: BOX POS 참고 정보
 - `memo`: 메모
 
+한 PT권에는 하나의 결제 row만 연결한다. 기존 DB에 같은 `pass_id` 결제가 여러 개 있으면 `payments_one_payment_per_pass_idx` 적용 전에 중복을 정리해야 한다.
 앱은 실제 결제를 처리하지 않는다.
 
 ### `payment_events`
@@ -413,7 +414,8 @@ PT권 결제 상태.
 
 - `payments.status`와 `pt_passes.payment_status`를 같은 최종 상태로 변경
 - `payment_events`에 변경 전 상태, 변경 후 상태, 변경자, 근거 메모를 기록
-- 재시도 시 중복 이력 생성 여부가 명확해야 하며, 불일치 상태로 일부 테이블만 변경되면 안 됨
+- 이미 같은 상태면 기존 결제 id를 반환하고 `payment_events`를 추가하지 않음
+- 재시도 시 불일치 상태로 일부 테이블만 변경되면 안 됨
 
 ### 연장 승인 RPC 또는 관리자 서버 트랜잭션
 

@@ -258,7 +258,7 @@ DB 트랜잭션 확인:
 - 상태 변경 성공 시 `pt_passes.payment_status`와 `payments.status`가 같은 최종 상태를 가진다.
 - `payment_events`에 상태 변경 이력이 남는다.
 - `payment_events.from_status`, `payment_events.to_status`, 변경자, 메모, 시간이 남는다.
-- 같은 요청을 재시도해도 같은 상태 변경 이력이 중복으로 쌓이지 않거나, 재시도가 별도 감사 이벤트로 남는 기준이 명확해야 한다.
+- 같은 상태 변경 요청을 재시도하면 성공으로 처리하되 `payment_events`가 중복으로 쌓이지 않는다.
 - 미납 상태에서도 정책상 허용이면 예약 요청 가능하다.
 - 정책상 미납 예약이 금지되면 미납/결제요청 PT권으로 예약 요청할 수 없다.
 

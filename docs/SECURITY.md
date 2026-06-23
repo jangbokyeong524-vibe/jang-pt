@@ -115,6 +115,7 @@
 - `paid`, `refunded` 상태 변경은 관리자만 가능해야 한다.
 - 결제 상태 변경 시 `payment_events`에 변경 전 상태, 변경 후 상태, 변경자, 메모, 시간을 기록한다.
 - 결제 상태 변경은 `payments.status`, `pt_passes.payment_status`, `payment_events`가 하나의 서버 트랜잭션으로 함께 바뀌어야 한다.
+- 이미 같은 상태로 변경 요청이 들어오면 성공으로 처리하되 `payment_events`는 추가하지 않는다. 단, `pt_passes.payment_status`가 뒤처진 경우에는 같은 상태로 보정할 수 있다.
 - 회원은 결제상태와 결제 이력을 읽을 수 있지만 직접 변경할 수 없다.
 - 회원에게는 본인 결제상태만 보여준다.
 

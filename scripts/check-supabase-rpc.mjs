@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const schema = readFileSync("docs/supabase-schema.sql", "utf8");
 const dataModel = readFileSync("docs/DATA_MODEL.md", "utf8");
@@ -6,6 +6,7 @@ const security = readFileSync("docs/SECURITY.md", "utf8");
 const testPlan = readFileSync("docs/TEST_PLAN.md", "utf8");
 const adapter = readFileSync("lib/reservation-actions.ts", "utf8");
 const passAdapter = readFileSync("lib/pass-actions.ts", "utf8");
+const paymentAdapter = existsSync("lib/payment-actions.ts") ? readFileSync("lib/payment-actions.ts", "utf8") : "";
 
 const failures = [];
 
@@ -79,6 +80,30 @@ assert(
   "create_pt_pass should be executable through explicit grants"
 );
 
+const paymentRpcNames = ["change_payment_status"];
+
+for (const rpcName of paymentRpcNames) {
+  const functionPattern = new RegExp(`create or replace function public\\.${rpcName}\\s*\\(`, "i");
+  assert(functionPattern.test(schema), `${rpcName} RPC should be defined in Supabase schema`);
+  assert(paymentAdapter.includes(`"${rpcName}"`), `${rpcName} RPC should be represented in the payment action adapter`);
+
+  const bodyMatch = schema.match(
+    new RegExp(`create or replace function public\\.${rpcName}[\\s\\S]*?\\n\\$\\$;`, "i")
+  );
+
+  assert(bodyMatch?.[0].includes("security definer"), `${rpcName} should be security definer`);
+  assert(bodyMatch?.[0].includes("public.is_admin()"), `${rpcName} should guard admin access`);
+  assert(bodyMatch?.[0].includes("public.payments"), `${rpcName} should update payments`);
+  assert(bodyMatch?.[0].includes("public.pt_passes"), `${rpcName} should update pt_passes`);
+  assert(bodyMatch?.[0].includes("public.payment_events"), `${rpcName} should insert payment_events`);
+  assert(bodyMatch?.[0].includes("return target_payment.id"), `${rpcName} should no-op same-status requests by returning the payment id`);
+}
+
+assert(
+  schema.includes("grant execute on function public.change_payment_status"),
+  "change_payment_status should be executable through explicit grants"
+);
+
 assert(
   !schema.includes('create policy "members create own reservation requests"'),
   "members must not insert reservations directly; use request_reservation RPC"
@@ -93,6 +118,11 @@ assert(
   schema.includes("pass_events_one_completion_per_reservation_idx") &&
     schema.includes("where event_type in ('session_completed', 'late_cancel_deducted')"),
   "pass event unique index should prevent duplicate completion and late-cancel deductions"
+);
+
+assert(
+  schema.includes("payments_one_payment_per_pass_idx"),
+  "payments should enforce one payment row per PT pass"
 );
 
 for (const doc of [dataModel, security, testPlan]) {

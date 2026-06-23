@@ -28,6 +28,7 @@ import {
   submitMemberLinkRequestAction
 } from "@/lib/member-link-actions";
 import { createPtPassAction } from "@/lib/pass-actions";
+import { changePaymentStatusAction } from "@/lib/payment-actions";
 import {
   approveReservationAction,
   completeSessionAction,
@@ -921,22 +922,42 @@ export function PtManagementApp() {
     }
   }
 
-  function changePaymentStatus(passId: string, nextStatus: PaymentStatus) {
-    setState((current) => {
-      const payment = current.payments.find((item) => item.passId === passId);
-      const pass = current.passes.find((item) => item.id === passId);
+  async function changePaymentStatus(passId: string, nextStatus: PaymentStatus) {
+    const memo = `결제 상태 변경: ${statusLabels[nextStatus]}`;
 
-      return {
-        ...current,
-        passes: current.passes.map((item) =>
-          item.id === passId ? { ...item, paymentStatus: nextStatus } : item
-        ),
-        payments: current.payments.map((item) =>
-          item.passId === passId ? { ...item, status: nextStatus, updatedAt: new Date().toISOString() } : item
-        ),
-        paymentEvents:
-          payment && pass
-            ? [
+    try {
+      await changePaymentStatusAction({
+        supabase,
+        targetPassId: passId,
+        nextStatus,
+        memo,
+        fallback: () => {
+          setState((current) => {
+            const payment = current.payments.find((item) => item.passId === passId);
+            const pass = current.passes.find((item) => item.id === passId);
+
+            if (!payment || !pass) {
+              return current;
+            }
+
+            if (payment.status === nextStatus) {
+              return {
+                ...current,
+                passes: current.passes.map((item) =>
+                  item.id === passId ? { ...item, paymentStatus: nextStatus } : item
+                )
+              };
+            }
+
+            return {
+              ...current,
+              passes: current.passes.map((item) =>
+                item.id === passId ? { ...item, paymentStatus: nextStatus } : item
+              ),
+              payments: current.payments.map((item) =>
+                item.passId === passId ? { ...item, status: nextStatus, updatedAt: new Date().toISOString() } : item
+              ),
+              paymentEvents: [
                 {
                   id: makeId("payment_event"),
                   paymentId: payment.id,
@@ -948,10 +969,21 @@ export function PtManagementApp() {
                 },
                 ...current.paymentEvents
               ]
-            : current.paymentEvents
-      };
-    });
-    setMessage("결제 상태를 변경했습니다.");
+            };
+          });
+        }
+      });
+    } catch {
+      setMessage("결제 상태 변경에 실패했습니다.");
+      return;
+    }
+
+    try {
+      await refreshOperationalData();
+      setMessage("결제 상태를 변경했습니다.");
+    } catch {
+      setMessage("결제 상태를 변경했습니다. 최신 데이터 새로고침에 실패했습니다.");
+    }
   }
 
   function approveExtension(requestId: string) {
@@ -1839,7 +1871,7 @@ function MembersView({
   reservations: Reservation[];
   slotFor: (slotId: string) => AvailabilitySlot | undefined;
   addPass: (memberId: string, productId: string) => Promise<void>;
-  changePaymentStatus: (passId: string, nextStatus: PaymentStatus) => void;
+  changePaymentStatus: (passId: string, nextStatus: PaymentStatus) => Promise<void>;
   approveExistingMemberLink: (requestId: string, memberId: string) => void;
   approveNewMemberLink: (requestId: string) => void;
   rejectMemberLink: (requestId: string) => void;
@@ -1906,7 +1938,7 @@ function MembersView({
             <select
               aria-label="결제 상태"
               value={activePass.paymentStatus}
-              onChange={(event) => changePaymentStatus(activePass.id, event.target.value as PaymentStatus)}
+              onChange={(event) => void changePaymentStatus(activePass.id, event.target.value as PaymentStatus)}
             >
               {paymentOrder.map((status) => (
                 <option value={status} key={status}>

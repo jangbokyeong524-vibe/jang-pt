@@ -2,7 +2,7 @@
 
 updated: 2026-06-23
 mode: codex-resume-index
-phase: pt-pass-creation-rpc
+phase: payment-status-rpc
 
 ## Rules
 
@@ -42,14 +42,14 @@ phase: pt-pass-creation-rpc
 - Member `예약` keeps the PT reservation action flow, starts with the calendar section, and keeps the booking summary as a compact three-column row.
 - Static layout contracts cover the admin minimal topbar/account menu/status-line, member compact header, member-mode top whitespace, admin-only root header, two-select admin schedule toolbar, compact schedule rows, month/week boundary, and PT-only data boundary.
 - PT권 등록 uses `create_pt_pass` when Supabase is configured and keeps the existing local fallback when Supabase env is missing.
+- 결제상태 변경 uses `change_payment_status` when Supabase is configured and keeps local fallback/no-op retry behavior when Supabase env is missing.
 
 ## Next Actions
 
 1. Manually verify the live Supabase member-link flow with a non-admin Google account and an admin account.
 2. Manually inspect mobile member `예약` to confirm the compact header/menu and calendar position feel right on device.
-3. Wire MVP-required payment status RPC, including `pt_passes`, `payments`, and `payment_events` history.
-4. Wire MVP-required extension approval/rejection RPC, including `extension_requests`, PT권 만료일, and `pass_events.extension_request_id` history.
-5. Connect Kakao login UI if Kakao member login remains required for MVP.
+3. Wire MVP-required extension approval/rejection RPC, including `extension_requests`, PT권 만료일, and `pass_events.extension_request_id` history.
+4. Connect Kakao login UI if Kakao member login remains required for MVP.
 
 ## Blockers / Notes
 
@@ -57,6 +57,7 @@ phase: pt-pass-creation-rpc
 
 ## Last Verified
 
+- 2026-06-23: Payment status RPC slice verified RED/GREEN with `npm run check:layout`; final verification ran `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-23: PT pass creation RPC slice verified RED/GREEN with `npm run check:layout`; final verification ran `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-23: Admin/member compact header top-edge alignment verified with browser DOM rects (`x=12, y=0, width=366, height=53` for both), `npm run check:layout`, `npm run build`, and `git diff --check`.
 - 2026-06-23: Admin header shell moved inside the admin app surface to mirror the member compact header fix; verification ran `npm run check:layout`, `npm run build`, and `git diff --check`.

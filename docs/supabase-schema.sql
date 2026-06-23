@@ -209,6 +209,22 @@ create index if not exists payments_member_id_idx
 create index if not exists payments_pass_id_idx
   on public.payments(pass_id);
 
+do $$
+begin
+  if exists (
+    select 1
+    from public.payments
+    group by pass_id
+    having count(*) > 1
+  ) then
+    raise exception 'duplicate payments.pass_id rows must be resolved before applying payments_one_payment_per_pass_idx';
+  end if;
+end;
+$$;
+
+create unique index if not exists payments_one_payment_per_pass_idx
+  on public.payments(pass_id);
+
 create table if not exists public.payment_events (
   id uuid primary key default gen_random_uuid(),
   payment_id uuid not null references public.payments(id) on delete cascade,
@@ -420,6 +436,91 @@ end;
 $$;
 
 grant execute on function public.create_pt_pass(uuid, uuid) to authenticated;
+
+create or replace function public.change_payment_status(
+  target_pass_id uuid,
+  next_status text,
+  change_memo text default ''
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_payment public.payments%rowtype;
+  current_status text;
+begin
+  if not public.is_admin() then
+    raise exception 'admin only';
+  end if;
+
+  if next_status not in ('unpaid', 'boxpos_requested', 'paid', 'refunded') then
+    raise exception 'invalid payment status';
+  end if;
+
+  select *
+  into target_payment
+  from public.payments
+  where pass_id = target_pass_id
+  for update;
+
+  if not found then
+    raise exception 'payment not found';
+  end if;
+
+  select payment_status
+  into current_status
+  from public.pt_passes
+  where id = target_pass_id
+  for update;
+
+  if not found then
+    raise exception 'pass not found';
+  end if;
+
+  if target_payment.status = next_status then
+    if current_status <> next_status then
+      update public.pt_passes
+      set payment_status = next_status
+      where id = target_pass_id;
+    end if;
+
+    return target_payment.id;
+  end if;
+
+  update public.payments
+  set
+    status = next_status,
+    updated_at = now()
+  where id = target_payment.id;
+
+  update public.pt_passes
+  set payment_status = next_status
+  where id = target_pass_id;
+
+  insert into public.payment_events (
+    payment_id,
+    from_status,
+    to_status,
+    actor_auth_user_id,
+    actor_role,
+    memo
+  )
+  values (
+    target_payment.id,
+    target_payment.status,
+    next_status,
+    auth.uid(),
+    'admin',
+    coalesce(change_memo, '')
+  );
+
+  return target_payment.id;
+end;
+$$;
+
+grant execute on function public.change_payment_status(uuid, text, text) to authenticated;
 
 create or replace function public.request_reservation(target_slot_id uuid, target_pass_id uuid)
 returns uuid
