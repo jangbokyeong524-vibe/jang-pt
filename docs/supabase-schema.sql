@@ -313,6 +313,114 @@ as $$
   limit 1;
 $$;
 
+create or replace function public.create_pt_pass(target_member_id uuid, target_product_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  selected_product public.pt_pass_products%rowtype;
+  new_pass_id uuid;
+  new_payment_id uuid;
+  today date := current_date;
+  policy_snapshot jsonb;
+begin
+  if not public.is_admin() then
+    raise exception 'admin only';
+  end if;
+
+  select *
+  into selected_product
+  from public.pt_pass_products
+  where id = target_product_id
+    and active = true;
+
+  if not found then
+    raise exception 'active product not found';
+  end if;
+
+  if not exists (select 1 from public.members where id = target_member_id) then
+    raise exception 'member not found';
+  end if;
+
+  policy_snapshot := jsonb_build_object(
+    'productName', selected_product.name,
+    'productSessions', selected_product.sessions,
+    'productPrice', selected_product.price,
+    'defaultValidDays', selected_product.default_valid_days,
+    'createdWithSettingsSummary', selected_product.name || ' ' || selected_product.default_valid_days || '일'
+  );
+
+  insert into public.pt_passes (
+    member_id,
+    product_id,
+    total_sessions,
+    remaining_sessions,
+    price,
+    payment_status,
+    starts_on,
+    expires_on,
+    active,
+    policy_snapshot
+  )
+  values (
+    target_member_id,
+    target_product_id,
+    selected_product.sessions,
+    selected_product.sessions,
+    selected_product.price,
+    'unpaid',
+    today,
+    today + selected_product.default_valid_days,
+    true,
+    policy_snapshot
+  )
+  returning id into new_pass_id;
+
+  insert into public.payments (
+    member_id,
+    pass_id,
+    amount,
+    status,
+    method,
+    memo
+  )
+  values (
+    target_member_id,
+    new_pass_id,
+    selected_product.price,
+    'unpaid',
+    'boxpos',
+    '신규 PT권 미납'
+  )
+  returning id into new_payment_id;
+
+  insert into public.pass_events (
+    pass_id,
+    member_id,
+    event_type,
+    delta_count,
+    reason,
+    actor_auth_user_id,
+    actor_role
+  )
+  values (
+    new_pass_id,
+    target_member_id,
+    'pass_created',
+    selected_product.sessions,
+    'PT권 등록',
+    auth.uid(),
+    'admin'
+  );
+
+  return new_pass_id;
+end;
+$$;
+
+grant execute on function public.create_pt_pass(uuid, uuid) to authenticated;
+
 create or replace function public.request_reservation(target_slot_id uuid, target_pass_id uuid)
 returns uuid
 language plpgsql

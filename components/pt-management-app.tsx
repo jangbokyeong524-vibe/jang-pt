@@ -27,6 +27,7 @@ import {
   rejectMemberLinkAction,
   submitMemberLinkRequestAction
 } from "@/lib/member-link-actions";
+import { createPtPassAction } from "@/lib/pass-actions";
 import {
   approveReservationAction,
   completeSessionAction,
@@ -994,69 +995,89 @@ export function PtManagementApp() {
     setMessage("연장 요청을 승인했습니다.");
   }
 
-  function addPass(memberId: string, productId: string) {
+  async function addPass(memberId: string, productId: string) {
     const product = state.policies.passProducts.find((item) => item.id === productId);
     if (!product) {
       return;
     }
 
-    const passId = makeId("pass");
-    const paymentId = makeId("payment");
-    const startsOn = new Date().toISOString().slice(0, 10);
-    const expiresOn = addDays(new Date(), product.defaultValidDays).toISOString().slice(0, 10);
+    try {
+      await createPtPassAction({
+        supabase,
+        targetMemberId: memberId,
+        targetProductId: productId,
+        fallback: () => {
+          const passId = makeId("pass");
+          const paymentId = makeId("payment");
+          const startsOn = new Date().toISOString().slice(0, 10);
+          const expiresOn = addDays(new Date(), product.defaultValidDays).toISOString().slice(0, 10);
 
-    setState((current) => ({
-      ...current,
-      passes: [
-        {
-          id: passId,
-          memberId,
-          productId: product.id,
-          totalSessions: product.sessions,
-          remainingSessions: product.sessions,
-          price: product.price,
-          paymentStatus: "unpaid",
-          startsOn,
-          expiresOn,
-          active: true,
-          policySnapshot: {
-            productName: product.name,
-            productSessions: product.sessions,
-            productPrice: product.price,
-            defaultValidDays: product.defaultValidDays,
-            createdWithSettingsSummary: `${product.name} ${product.defaultValidDays}일, 요청만료 ${current.policies.booking.requestExpiryHours}시간`
-          }
-        },
-        ...current.passes
-      ],
-      payments: [
-        {
-          id: paymentId,
-          memberId,
-          passId,
-          amount: product.price,
-          status: "unpaid",
-          method: "boxpos",
-          memo: "신규 PT권 미납",
-          updatedAt: new Date().toISOString()
-        },
-        ...current.payments
-      ],
-      passEvents: [
-        {
-          id: makeId("event"),
-          passId,
-          memberId,
-          eventType: "pass_created",
-          deltaCount: product.sessions,
-          reason: `${product.name} 등록`,
-          actor: "admin",
-          createdAt: new Date().toISOString()
-        },
-        ...current.passEvents
-      ]
-    }));
-    setMessage("신규 PT권을 등록했습니다.");
+          setState((current) => ({
+            ...current,
+            passes: [
+              {
+                id: passId,
+                memberId,
+                productId: product.id,
+                totalSessions: product.sessions,
+                remainingSessions: product.sessions,
+                price: product.price,
+                paymentStatus: "unpaid",
+                startsOn,
+                expiresOn,
+                active: true,
+                policySnapshot: {
+                  productName: product.name,
+                  productSessions: product.sessions,
+                  productPrice: product.price,
+                  defaultValidDays: product.defaultValidDays,
+                  createdWithSettingsSummary: `${product.name} ${product.defaultValidDays}일, 요청만료 ${current.policies.booking.requestExpiryHours}시간`
+                }
+              },
+              ...current.passes
+            ],
+            payments: [
+              {
+                id: paymentId,
+                memberId,
+                passId,
+                amount: product.price,
+                status: "unpaid",
+                method: "boxpos",
+                memo: "신규 PT권 미납",
+                updatedAt: new Date().toISOString()
+              },
+              ...current.payments
+            ],
+            passEvents: [
+              {
+                id: makeId("event"),
+                passId,
+                memberId,
+                eventType: "pass_created",
+                deltaCount: product.sessions,
+                reason: `${product.name} 등록`,
+                actor: "admin",
+                createdAt: new Date().toISOString()
+              },
+              ...current.passEvents
+            ]
+          }));
+
+          return passId;
+        }
+      });
+    } catch {
+      setMessage("PT권 등록에 실패했습니다.");
+      return;
+    }
+
+    try {
+      await refreshOperationalData();
+      setMessage("PT권을 등록했습니다.");
+    } catch {
+      setMessage("PT권을 등록했습니다. 최신 데이터 새로고침에 실패했습니다.");
+    }
   }
 
   function updatePolicy(path: string, value: number | boolean | string) {
@@ -1817,7 +1838,7 @@ function MembersView({
   activePass?: PtPass;
   reservations: Reservation[];
   slotFor: (slotId: string) => AvailabilitySlot | undefined;
-  addPass: (memberId: string, productId: string) => void;
+  addPass: (memberId: string, productId: string) => Promise<void>;
   changePaymentStatus: (passId: string, nextStatus: PaymentStatus) => void;
   approveExistingMemberLink: (requestId: string, memberId: string) => void;
   approveNewMemberLink: (requestId: string) => void;
@@ -1864,7 +1885,7 @@ function MembersView({
             aria-label="신규 PT권"
             onChange={(event) => {
               if (event.target.value) {
-                addPass(selectedMember.id, event.target.value);
+                void addPass(selectedMember.id, event.target.value);
                 event.target.value = "";
               }
             }}

@@ -5,6 +5,7 @@ const dataModel = readFileSync("docs/DATA_MODEL.md", "utf8");
 const security = readFileSync("docs/SECURITY.md", "utf8");
 const testPlan = readFileSync("docs/TEST_PLAN.md", "utf8");
 const adapter = readFileSync("lib/reservation-actions.ts", "utf8");
+const passAdapter = readFileSync("lib/pass-actions.ts", "utf8");
 
 const failures = [];
 
@@ -52,6 +53,31 @@ for (const memberRpcName of ["request_reservation", "request_reservation_cancel"
 
   assert(bodyMatch?.[0].includes("public.approved_member_id()"), `${memberRpcName} should guard approved member access`);
 }
+
+const passRpcNames = ["create_pt_pass"];
+
+for (const rpcName of passRpcNames) {
+  const functionPattern = new RegExp(`create or replace function public\\.${rpcName}\\s*\\(`, "i");
+  assert(functionPattern.test(schema), `${rpcName} RPC should be defined in Supabase schema`);
+  assert(passAdapter.includes(`"${rpcName}"`), `${rpcName} RPC should be represented in the pass action adapter`);
+}
+
+for (const adminRpcName of passRpcNames) {
+  const bodyMatch = schema.match(
+    new RegExp(`create or replace function public\\.${adminRpcName}[\\s\\S]*?\\n\\$\\$;`, "i")
+  );
+
+  assert(bodyMatch?.[0].includes("security definer"), `${adminRpcName} should be security definer`);
+  assert(bodyMatch?.[0].includes("public.is_admin()"), `${adminRpcName} should guard admin access`);
+  assert(bodyMatch?.[0].includes("public.pt_passes"), `${adminRpcName} should insert a PT pass`);
+  assert(bodyMatch?.[0].includes("public.payments"), `${adminRpcName} should create the initial payment row`);
+  assert(bodyMatch?.[0].includes("public.pass_events"), `${adminRpcName} should create the initial pass event`);
+}
+
+assert(
+  schema.includes("grant execute on function public.create_pt_pass"),
+  "create_pt_pass should be executable through explicit grants"
+);
 
 assert(
   !schema.includes('create policy "members create own reservation requests"'),
