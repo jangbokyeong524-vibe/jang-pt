@@ -15,6 +15,12 @@ const rootReturnStart = component.indexOf("return (");
 const rootMemberBranchStart = component.indexOf('{mode === "admin" ? (', rootReturnStart);
 const rootMemberBranch =
   rootMemberBranchStart >= 0 ? component.slice(rootMemberBranchStart, component.indexOf("</main>", rootMemberBranchStart)) : "";
+const adminTopbarStart = rootMemberBranch.indexOf('className="topbar"');
+const adminTopbarEnd = adminTopbarStart >= 0 ? rootMemberBranch.indexOf("</header>", adminTopbarStart) : -1;
+const adminTopbar =
+  adminTopbarStart >= 0 && adminTopbarEnd > adminTopbarStart
+    ? rootMemberBranch.slice(adminTopbarStart, adminTopbarEnd)
+    : "";
 const memberViewStart = component.indexOf("function MemberView");
 const memberBookingViewStart = component.indexOf("function MemberBookingView");
 const memberHistoryViewStart = component.indexOf("function MemberHistoryView");
@@ -70,23 +76,54 @@ assert(
 );
 
 assert(
+  !adminTopbar.includes("<h1>PT 운영 관리</h1>") &&
+    adminTopbar.includes('className="admin-header-brand"') &&
+    adminTopbar.includes('className="admin-role-pill"'),
+  "admin topbar should show only the gym brand and admin pill, not the old large page title"
+);
+
+assert(
+  !adminTopbar.includes("<span>{authEmail}</span>") &&
+    adminTopbar.includes('className="admin-account-menu-wrap"') &&
+    adminTopbar.includes('className="admin-account-email-pill"') &&
+    adminTopbar.includes("데모 관리자"),
+  "admin topbar should hide raw email until the account menu opens and provide a demo fallback pill"
+);
+
+assert(
+  adminTopbar.includes('aria-label={adminMenuOpen ? "관리자 계정 메뉴 닫기" : "관리자 계정 메뉴 열기"}') &&
+    adminTopbar.includes('role="menu"') &&
+    adminTopbar.includes("handleAdminSignOut"),
+  "admin logout should live in an account menu with an explicit menu trigger"
+);
+
+assert(
+  component.includes("function shouldShowAdminNotice") &&
+    rootMemberBranch.includes("{shouldShowAdminNotice(message, authEmail) && (") &&
+    rootMemberBranch.includes('<section className="status-line" aria-live="polite">'),
+  "admin status-line should be conditional and suppress initial login/account status messages"
+);
+
+assert(
   /\.topbar\s*\{(?![^}]*env\(safe-area-inset-top\))(?![^}]*margin:\s*-[^;}]*-[^;}]*;)[^}]*margin:\s*0\s+0\s+[0-9]+px[^}]*padding:\s*[0-9]+px\s+0/s.test(css),
   "admin topbar should stay inside the app shell with no negative bleed or safe-area top padding"
 );
 
 assert(
   /\.topbar\s*\{[^}]*gap:\s*[0-8]px[^}]*padding:\s*[0-8]px\s+0/s.test(css) &&
-    /\.topbar\s+h1\s*\{[^}]*font-size:\s*2[0-3]px[^}]*line-height:\s*1\.1[0-9]/s.test(css),
-  "admin topbar should use compact vertical spacing and lower title type"
+    /\.admin-header-brand\s*\{[^}]*font-size:\s*1[4-7]px[^}]*line-height:\s*1\.2[0-9]/s.test(css),
+  "admin topbar should use compact vertical spacing and one-line brand type"
 );
 
 assert(
-  /\.topbar\s+\.segmented\s*\{[^}]*min-height:\s*3[2-8]px[^}]*padding:\s*0\s+1[0-2]px[^}]*font-size:\s*13px/s.test(css),
-  "admin/member mode switch in the admin topbar should be a compact control"
+  /\.admin-header-actions\s*\{[^}]*display:\s*flex[^}]*gap:\s*[4-8]px/s.test(css) &&
+    /\.admin-header-actions\s+\.segmented\s*\{[^}]*min-height:\s*3[2-8]px[^}]*padding:\s*0\s+1[0-2]px[^}]*font-size:\s*13px/s.test(css),
+  "admin/member mode switch in the admin topbar should be a compact header action"
 );
 
 assert(
-  /\.status-line\s*\{[^}]*min-height:\s*3[0-8]px[^}]*padding:\s*[5-8]px\s+0[^}]*margin-bottom:\s*[0-8]px(?![^}]*box-shadow)/s.test(css),
+  /\.status-line\s*\{[^}]*min-height:\s*3[0-8]px[^}]*padding:\s*[5-8]px\s+0[^}]*margin-bottom:\s*[0-8]px(?![^}]*box-shadow)/s.test(css) &&
+    !/\.status-line\s*\{[^}]*box-shadow/s.test(css),
   "admin status-line should be a low inline notice, not a large card"
 );
 
@@ -144,6 +181,13 @@ assert(
 assert(
   !memberView.includes('className="toolbar"'),
   "member view should remove the old full-width toolbar member selector row"
+);
+
+assert(
+  memberView.includes('authStatus === "admin"') &&
+    memberView.includes("handleAdminModeSelect") &&
+    memberView.includes("관리자 화면"),
+  "member menu should let signed-in admins return to the admin surface after switching to member mode"
 );
 
 assert(

@@ -167,6 +167,8 @@ export function PtManagementApp() {
   const [selectedMemberId, setSelectedMemberId] = useState("member_1");
   const [memberSessionId, setMemberSessionId] = useState("member_3");
   const [message, setMessage] = useState("데모 데이터가 로드되었습니다.");
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const adminMenuRef = useRef<HTMLDivElement>(null);
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const selectedMember = state.members.find((member) => member.id === selectedMemberId) ?? state.members[0];
@@ -355,6 +357,32 @@ export function PtManagementApp() {
     };
   }, [supabase]);
 
+  useEffect(() => {
+    if (!adminMenuOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (adminMenuRef.current && !adminMenuRef.current.contains(event.target as Node)) {
+        setAdminMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setAdminMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [adminMenuOpen]);
+
   function activePassFor(memberId: string) {
     return state.passes.find((pass) => pass.memberId === memberId && pass.active);
   }
@@ -389,6 +417,16 @@ export function PtManagementApp() {
     setAuthEmail("");
     setAuthUserId("");
     setMessage("로그아웃했습니다.");
+  }
+
+  function handleAdminMemberModeSelect() {
+    setMode("member");
+    setAdminMenuOpen(false);
+  }
+
+  async function handleAdminSignOut() {
+    setAdminMenuOpen(false);
+    await handleSignOut();
   }
 
   async function submitMemberLinkRequest(event: FormEvent<HTMLFormElement>) {
@@ -1125,35 +1163,47 @@ export function PtManagementApp() {
       {mode === "admin" ? (
         <>
           <header className="topbar">
-            <div>
-              <p className="eyebrow">강동무에타이장</p>
-              <h1>PT 운영 관리</h1>
+            <div className="admin-header-identity">
+              <strong className="admin-header-brand">강동무에타이장</strong>
+              <span className="admin-role-pill">관리자</span>
             </div>
-            {authStatus === "demo" ? (
-              <div className="topbar-actions" role="tablist" aria-label="화면 전환">
-                <button className="segmented active" onClick={() => setMode("admin")}>
-                  <ClipboardList size={16} />
-                  관리자
+
+            <div className="admin-header-actions">
+              <button className="segmented" onClick={handleAdminMemberModeSelect} type="button">
+                <LogIn size={16} />
+                회원
+              </button>
+              <div className="admin-account-menu-wrap" ref={adminMenuRef}>
+                <button
+                  className="icon-button admin-account-menu-trigger"
+                  type="button"
+                  aria-label={adminMenuOpen ? "관리자 계정 메뉴 닫기" : "관리자 계정 메뉴 열기"}
+                  aria-expanded={adminMenuOpen}
+                  aria-haspopup="menu"
+                  onClick={() => setAdminMenuOpen((open) => !open)}
+                >
+                  <MoreVertical size={18} />
                 </button>
-                <button className="segmented" onClick={() => setMode("member")}>
-                  <LogIn size={16} />
-                  회원
-                </button>
+                {adminMenuOpen && (
+                  <div className="admin-account-menu" role="menu" aria-label="관리자 계정 메뉴">
+                    <span className="admin-account-email-pill">{authStatus === "demo" ? "데모 관리자" : authEmail}</span>
+                    {authStatus !== "demo" && (
+                      <button className="ghost-button" onClick={handleAdminSignOut} type="button" role="menuitem">
+                        로그아웃
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="auth-identity">
-                <span>{authEmail}</span>
-                <button className="ghost-button" onClick={handleSignOut} type="button">
-                  로그아웃
-                </button>
-              </div>
-            )}
+            </div>
           </header>
 
-          <section className="status-line" aria-live="polite">
-            <Bell size={16} />
-            <span>{message}</span>
-          </section>
+          {shouldShowAdminNotice(message, authEmail) && (
+            <section className="status-line" aria-live="polite">
+              <Bell size={16} />
+              <span>{message}</span>
+            </section>
+          )}
 
           <section className="app-surface-flat with-bottom-nav">
             {adminTab === "home" && (
@@ -2463,6 +2513,15 @@ function MemberView({
                     관리자 화면
                   </button>
                 </>
+              ) : authStatus === "admin" ? (
+                <>
+                  <button className="ghost-button" onClick={handleAdminModeSelect} type="button" role="menuitem">
+                    관리자 화면
+                  </button>
+                  <button className="ghost-button" onClick={handleMemberSignOut} type="button" role="menuitem">
+                    로그아웃
+                  </button>
+                </>
               ) : (
                 <button className="ghost-button" onClick={handleMemberSignOut} type="button" role="menuitem">
                   로그아웃
@@ -3459,6 +3518,27 @@ function shouldRenew(pass: PtPass, state: AppState) {
     pass.remainingSessions <= state.policies.renewal.remainingSessionsThreshold ||
     expiresInDays <= state.policies.renewal.daysBeforeExpiryThreshold
   );
+}
+
+function shouldShowAdminNotice(message: string, authEmail: string) {
+  const trimmedMessage = message.trim();
+
+  if (!trimmedMessage) {
+    return false;
+  }
+
+  if (authEmail && trimmedMessage.startsWith(`${authEmail} `)) {
+    return false;
+  }
+
+  return ![
+    "데모 데이터가 로드되었습니다.",
+    "Supabase 환경변수가 없어 로컬 데모 모드로 실행 중입니다.",
+    "Google 로그인 후 관리자/회원 화면을 확인할 수 있습니다.",
+    "Google 계정으로 로그인 중입니다.",
+    "로그아웃했습니다.",
+    "회원 연결 승인 전입니다. 전화번호로 연결 요청을 남겨주세요."
+  ].includes(trimmedMessage);
 }
 
 function normalizePhone(phone: string) {
